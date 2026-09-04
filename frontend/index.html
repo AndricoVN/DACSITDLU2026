@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cổng Thông Tin Học Tập Sinh Viên | Trường Đại học Đà Lạt</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- 1. MÀN HÌNH ĐĂNG NHẬP (LOGIN VIEW) -->
+    <div id="loginView" class="auth-wrapper">
+        <div class="glass-card login-card">
+            <div class="login-brand">
+                <div class="brand-logo"><i class="fa-solid fa-graduation-cap"></i></div>
+                <h2 class="mb-2">ĐỒ ÁN CƠ SƠ</h2>
+                <p>Xây dựng DWH và ứng dụng quản lý cho sinh viên</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div id="loginError" class="alert-box alert-danger hidden"></div>
+                <div class="form-group">
+                    <label for="txtUsername"><i class="fa-regular fa-user"></i> Tên đăng nhập:</label>
+                    <input type="text" id="txtUsername" class="custom-input" placeholder="VD: user001" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="txtPassword"><i class="fa-solid fa-lock"></i> Mật khẩu Moodle:</label>
+                    <input type="password" id="txtPassword" class="custom-input" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" id="btnLogin" class="btn-primary btn-block">
+                    <span>Đăng nhập</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+            </form>
+            <p class="login-footer"><i class="fa-solid fa-database"></i> Moodle → ETL → Data Warehouse → API</p>
+        </div>
+    </div>
+
+    <!-- 2. MÀN HÌNH DASHBOARD SINH VIÊN (AUTHENTICATED VIEW) -->
+    <div id="dashboardView" class="app-layout hidden">
+        
+        <!-- HEADER PROFILE -->
+        <header class="top-nav">
+            <div class="nav-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Đồ án cơ sở</h1>
+                    <p id="txtInstitution">Trường Đại học Đà Lạt</p>
+                </div>
+            </div>
+            
+            <div class="user-profile-header">
+                <div class="avatar-circle" id="userAvatar">SV</div>
+                <div class="user-meta">
+                    <h3 id="txtFullName">Đang tải...</h3>
+                    <p><span id="txtIdNumber">MSSV: --</span> • <strong id="txtCohort" class="text-cyan">Lớp: --</strong></p>
+                </div>
+                <button id="btnTheme" class="btn-icon-header" title="Đổi giao diện sáng/tối">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+                <button id="btnLogout" class="btn-logout" title="Đăng xuất">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD BODY -->
+        <main class="dashboard-body">
+            
+            <!-- CẢNH BÁO HỌC VỤ KHẨN CẤP (NẾU CÓ) -->
+            <div id="urgentAlertBox" class="glass-card urgent-banner hidden">
+                <div class="alert-icon-pulse">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <div class="alert-content">
+                    <h4 id="urgentAlertTitle">Cảnh báo Học vụ & Hạn chót khẩn cấp!</h4>
+                    <p id="urgentAlertDesc">Bạn có bài tập cần hoàn thành trong vòng 24h tới.</p>
+                </div>
+                <button id="btnViewUrgent" class="btn-banner-action">
+                    <i class="fa-solid fa-arrow-right"></i> Xem việc cần làm
+                </button>
+            </div>
+
+            <!-- 1. 4 ACTION CARDS THIẾT THỰC DÀNH CHO SINH VIÊN -->
+            <section class="kpi-grid">
+                <!-- Card 1: Điểm GPA tích lũy -->
+                <div class="glass-card kpi-card kpi-clickable" id="kpiGpa" title="Xem bảng điểm chi tiết">
+                    <div class="card-header-mini">
+                        <span class="kpi-title">GPA Tích lũy (Hệ 10 & 4)</span>
+                        <div class="kpi-icon icon-success">
+                            <i class="fa-solid fa-award"></i>
+                        </div>
+                    </div>
+                    <div class="kpi-main">
+                        <div>
+                            <h2 id="valGpa10">--</h2>
+                            <span class="gpa-sub">Hệ 4: <strong id="valGpa4">--</strong></span>
+                        </div>
+                        <span class="badge badge-success" id="badgeGpaClass">Đang tải</span>
+                    </div>
+                    <p class="kpi-subtitle"><i class="fa-solid fa-book-bookmark"></i> Điểm tổng kết trung bình các môn</p>
+                </div>
+
+                <!-- Card 2: Hạn chót gấp (< 48 giờ) -->
+                <div class="glass-card kpi-card kpi-clickable" id="kpiUrgent" title="Xem danh sách cần nộp gấp">
+                    <div class="card-header-mini">
+                        <span class="kpi-title">Hạn nộp Khẩn cấp (&lt; 48h)</span>
+                        <div class="kpi-icon icon-danger">
+                            <i class="fa-solid fa-fire"></i>
+                        </div>
+                    </div>
+                    <div class="kpi-main">
+                        <h2 id="valUrgentDeadlines">0</h2>
+                        <span class="badge badge-danger" id="badgeUrgent">Cần nộp gấp</span>
+                    </div>
+                    <p class="kpi-subtitle" id="subUrgentText"><i class="fa-solid fa-clock"></i> Không có bài tập sắp đến hạn</p>
+                </div>
+
+                <!-- Card 3: Kỷ luật nộp bài -->
+                <div class="glass-card kpi-card kpi-clickable" id="kpiOnTime" title="Xem toàn bộ bài tập">
+                    <div class="card-header-mini">
+                        <span class="kpi-title">Kỷ luật Nộp bài tập</span>
+                        <div class="kpi-icon icon-cyan">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </div>
+                    </div>
+                    <div class="kpi-main">
+                        <div>
+                            <h2 id="valOnTimeRate">--%</h2>
+                            <span class="gpa-sub">trước deadline</span>
+                        </div>
+                        <svg class="progress-ring ring-cyan" viewBox="0 0 44 44" id="ringOnTime" aria-hidden="true">
+                            <circle class="ring-bg" cx="22" cy="22" r="19"></circle>
+                            <circle class="ring-fg" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+                        </svg>
+                    </div>
+                    <p class="kpi-subtitle"><i class="fa-solid fa-chart-pie"></i> Tỷ lệ bài nộp trước Deadline</p>
+                </div>
+
+                <!-- Card 4: Bài kiểm tra & Quiz -->
+                <div class="glass-card kpi-card kpi-clickable" id="kpiQuiz" title="Xem danh sách Quiz">
+                    <div class="card-header-mini">
+                        <span class="kpi-title">Điểm Quiz Trắc nghiệm TB</span>
+                        <div class="kpi-icon icon-purple">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                    </div>
+                    <div class="kpi-main">
+                        <div>
+                            <h2 id="valAvgQuizScore">--</h2>
+                            <span class="gpa-sub" id="valQuizCount">0 bài làm</span>
+                        </div>
+                        <svg class="progress-ring ring-purple" viewBox="0 0 44 44" id="ringQuiz" aria-hidden="true">
+                            <circle class="ring-bg" cx="22" cy="22" r="19"></circle>
+                            <circle class="ring-fg" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="119.4"></circle>
+                        </svg>
+                    </div>
+                    <p class="kpi-subtitle"><i class="fa-solid fa-circle-question"></i> Điểm trung bình các bài trắc nghiệm</p>
+                </div>
+            </section>
+
+            <!-- 2. TRUNG TÂM HÀNH ĐỘNG: BÀI TẬP + QUIZ (TAB) -->
+            <section class="glass-card action-center" id="actionCenter">
+                <div class="card-header">
+                    <div class="header-left">
+                        <i class="fa-solid fa-calendar-day text-amber"></i>
+                        <div>
+                            <h3>Trung tâm Hành động Học tập</h3>
+                            <p class="section-desc">Bài tập & Quiz các môn đang học — mặc định chỉ hiện việc cần làm</p>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <span class="last-updated" id="lastUpdated"><i class="fa-regular fa-clock"></i> --</span>
+                        <button class="btn-refresh" id="btnRefresh"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+                    </div>
+                </div>
+
+                <div class="timeline-strip" id="timelineStrip"></div>
+
+                <div class="tabs" role="tablist">
+                    <button class="tab active" data-tab="assignments" role="tab">
+                        <i class="fa-solid fa-pen-to-square"></i> Bài tập & Hạn nộp
+                        <span class="tab-count" id="tabAssignCount">0</span>
+                    </button>
+                    <button class="tab" data-tab="quizzes" role="tab">
+                        <i class="fa-solid fa-stopwatch-20"></i> Quiz & Kiểm tra
+                        <span class="tab-count" id="tabQuizCount">0</span>
+                    </button>
+                </div>
+
+                <!-- PANEL: ASSIGNMENTS -->
+                <div class="tab-panel active" id="panel-assignments">
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="assignSearch" placeholder="Tìm bài tập hoặc môn học... (nhấn /)" autocomplete="off">
+                        </div>
+                        <select id="assignCourse" class="custom-select" title="Lọc theo môn học">
+                            <option value="all">Tất cả môn học</option>
+                        </select>
+                        <select id="assignSort" class="custom-select" title="Sắp xếp">
+                            <option value="due_asc">Hạn gần nhất trước</option>
+                            <option value="due_desc">Hạn xa nhất trước</option>
+                            <option value="course">Theo tên môn học</option>
+                        </select>
+                    </div>
+                    <div class="pill-row" id="assignPills">
+                        <button class="pill active" data-status="pending">Chưa nộp</button>
+                        <button class="pill" data-status="urgent">Sắp đến hạn</button>
+                        <button class="pill" data-status="overdue">Quá hạn</button>
+                        <button class="pill" data-status="submitted">Đã nộp</button>
+                        <button class="pill" data-status="all">Tất cả</button>
+                        <span class="result-count" id="assignResultCount"></span>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Bài tập / Nhiệm vụ</th>
+                                    <th>Môn học</th>
+                                    <th>Hạn chót</th>
+                                    <th>Còn lại</th>
+                                    <th>Trạng thái</th>
+                                    <th>Điểm</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deadlinesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PANEL: QUIZZES -->
+                <div class="tab-panel" id="panel-quizzes">
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="quizSearch" placeholder="Tìm bài kiểm tra hoặc môn học..." autocomplete="off">
+                        </div>
+                        <select id="quizCourse" class="custom-select" title="Lọc theo môn học">
+                            <option value="all">Tất cả môn học</option>
+                        </select>
+                        <select id="quizSort" class="custom-select" title="Sắp xếp">
+                            <option value="close_asc">Đóng gần nhất trước</option>
+                            <option value="score_desc">Điểm cao nhất trước</option>
+                            <option value="course">Theo tên môn học</option>
+                        </select>
+                    </div>
+                    <div class="pill-row" id="quizPills">
+                        <button class="pill active" data-status="pending">Chưa làm</button>
+                        <button class="pill" data-status="doing">Đang làm</button>
+                        <button class="pill" data-status="done">Đã hoàn thành</button>
+                        <button class="pill" data-status="closed">Đã đóng</button>
+                        <button class="pill" data-status="all">Tất cả</button>
+                        <span class="result-count" id="quizResultCount"></span>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Bài kiểm tra</th>
+                                    <th>Môn học</th>
+                                    <th>Thời lượng</th>
+                                    <th>Đóng lúc</th>
+                                    <th>Điểm / Lần làm</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quizzesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. TIẾN ĐỘ HỌC TẬP & BẢNG ĐIỂM CÁC HỌC PHẦN (TRANSCRIPT) -->
+            <div class="two-column-grid">
+                <!-- Bảng Điểm Từng Môn Học -->
+                <section class="glass-card" id="transcriptSection">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <i class="fa-solid fa-graduation-cap text-cyan"></i>
+                            <div>
+                                <h3>Kết quả Học phần Học kỳ này</h3>
+                                <p class="section-desc">Tiến độ nộp bài, điểm thành phần & tổng kết — nhấn tiêu đề cột để sắp xếp</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th class="th-sortable" data-sort="name">Học phần</th>
+                                    <th>Tiến độ</th>
+                                    <th class="th-sortable" data-sort="quiz">Quiz TB</th>
+                                    <th class="th-sortable" data-sort="assign">Assign TB</th>
+                                    <th class="th-sortable" data-sort="final">ĐTB (10)</th>
+                                    <th>Xếp loại</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coursesTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Biểu đồ Phổ Điểm Học Phần 1 - 10 -->
+                <section class="glass-card">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <i class="fa-solid fa-chart-simple text-cyan"></i>
+                            <div>
+                                <h3>Phổ Điểm Môn Học (Thang Điểm 1 - 10)</h3>
+                                <p class="section-desc">Phân bố số lượng học phần theo các mức điểm tổng kết</p>
+                            </div>
+                        </div>
+                        <div class="chart-actions-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div class="chart-toggle" id="scoreYearToggle">
+                                <button class="active" data-year="all"><i class="fa-solid fa-layer-group"></i> Tất cả</button>
+                                <button data-year="current"><i class="fa-solid fa-calendar-check"></i> Năm nay</button>
+                                <button data-year="previous"><i class="fa-solid fa-calendar-minus"></i> Năm trước</button>
+                            </div>
+                            <select id="scoreYearSelect" class="form-select-sm" title="Chọn năm học cụ thể" style="background: rgba(255,255,255,0.06); color: var(--text-primary); border: 1px solid var(--border-glass); border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; outline: none;">
+                                <option value="all">Tất cả các năm</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="position: relative; height: 320px;">
+                        <canvas id="scoreDistributionChart"></canvas>
+                    </div>
+                    <div id="scoreDistSummary" class="score-dist-summary" style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-glass); font-size: 0.85rem;">
+                        <!-- Rendered by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Quiz đã gộp vào "Trung tâm Hành động" (tab) phía trên -->
+
+        </main>
+        
+        <footer class="app-footer">
+            <p>© 2026 Trường Đại học Đà Lạt - Hệ thống Học tập Trực tuyến E-Learning</p>
+        </footer>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
