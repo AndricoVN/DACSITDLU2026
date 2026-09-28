@@ -1,0 +1,104 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: moodle_db
+    restart: always
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+    environment:
+      MYSQL_ROOT_PASSWORD: moodlerootpassword
+      MYSQL_DATABASE: moodledb
+      MYSQL_USER: moodleuser
+      MYSQL_PASSWORD: moodlepassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  moodleweb:
+    image: elestio/moodle:latest
+    container_name: moodle_app
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      MOODLE_DATABASE_HOST: mariadb
+      MOODLE_DATABASE_USER: moodleuser
+      MOODLE_DATABASE_PASSWORD: moodlepassword
+      MOODLE_DATABASE_NAME: moodledb
+    volumes:
+      - moodle_data:/var/www/html
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  sqlserver:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: datawarehouse_sqlserver
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuperStrongPass123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  etl:
+    build: ./etl
+    container_name: dlu_etl
+    volumes:
+      - ./etl:/etl
+      - ./dwh:/dwh
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      sqlserver:
+        condition: service_started
+
+  backend:
+    build: ./backend
+    container_name: dlu_backend
+    restart: always
+    environment:
+      DB_USER: sa
+      DB_PASSWORD: SuperStrongPass123!
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: lms_datawarehouse
+      PORT: 5000
+    volumes:
+      - ./frontend:/frontend
+    ports:
+      - "5050:5000"
+    depends_on:
+      sqlserver:
+        condition: service_started
+
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: dev_vscode
+    restart: always
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Ho_Chi_Minh
+      - PASSWORD=abc123456
+      - SUDO_PASSWORD=abc123456
+    volumes:
+      - .:/config/workspace
+    ports:
+      - "8443:8443"
+
+volumes:
+  mssql_data:
+  moodle_data:

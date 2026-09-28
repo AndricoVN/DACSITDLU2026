@@ -674,6 +674,70 @@ body {
 .progress-label { display: block; font-size: 0.7rem; color: var(--text-secondary); }
 
 /* Empty state */
+/* ========== ÔN TẬP CÂU SAI (Review Accordion) ========== */
+.review-list { display: flex; flex-direction: column; gap: 0.7rem; }
+.review-item {
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+.review-item:hover { border-color: rgba(6, 182, 212, 0.35); }
+.review-item-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.85rem 1rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+.review-item-main { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.review-item-main .course-name { font-weight: 700; font-size: 0.85rem; }
+.review-quiz-name { font-size: 0.78rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; }
+.review-item-meta { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+.review-chevron { color: var(--text-secondary); transition: transform 0.25s ease; font-size: 0.8rem; }
+.review-item.open .review-chevron { transform: rotate(180deg); color: var(--color-cyan); }
+.review-question-text {
+    padding: 0 1rem 0.9rem;
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-weight: 500;
+}
+.review-answer-body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.review-item.open .review-answer-body {
+    max-height: 600px;
+    opacity: 1;
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--border-glass);
+    padding-top: 0.8rem;
+}
+.review-answer-row { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.82rem; line-height: 1.45; }
+.review-answer-row i { margin-top: 0.15rem; font-size: 0.75rem; }
+.review-answer-row p { margin: 0.1rem 0 0; color: var(--text-primary); }
+.review-answer-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.review-answer-wrong { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); }
+.review-answer-wrong i { color: #f87171; }
+.review-answer-correct { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); }
+.review-answer-correct i { color: #34d399; }
+
+
 .empty-state { text-align: center; padding: 2.4rem 1rem; color: var(--text-secondary); }
 .empty-state i { font-size: 1.9rem; margin-bottom: 0.7rem; opacity: 0.65; display: block; }
 .empty-state h4 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.25rem; }

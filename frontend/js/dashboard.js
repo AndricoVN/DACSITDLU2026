@@ -14,10 +14,12 @@ const state = {
     deadlines: [],
     quizzes: [],
     courses: [],
+    wrongQuestions: [],
     deadlinesFetchedAt: null,
     activeTab: 'assignments',
     assign: { status: 'pending', search: '', course: 'all', sort: 'due_asc' },
     quiz: { status: 'pending', search: '', course: 'all', sort: 'close_asc' },
+    review: { search: '', course: 'all' },
     transcriptSort: { key: null, dir: 'asc' },
     scoreYearFilter: 'all',
     lastUpdated: null
@@ -209,6 +211,15 @@ function renderSkeletonAll() {
     renderSkeletonRow('deadlinesTableBody', 6, 6);
     renderSkeletonRow('quizzesTableBody', 6, 5);
     renderSkeletonRow('coursesTableBody', 6, 4);
+    const rl = $('reviewList');
+    if (rl) {
+        rl.innerHTML = Array.from({ length: 3 }).map(() => `
+            <div class="review-item">
+                <div class="review-item-head">
+                    <div class="skeleton w-80" style="height:14px;"></div>
+                </div>
+            </div>`).join('');
+    }
     const tl = $('timelineStrip');
     if (tl) tl.innerHTML = '';
 }
@@ -234,12 +245,13 @@ async function loadStudentData(silent = false) {
             fetchSummary(),
             fetchDeadlines(),
             fetchCourses(),
-            fetchQuizzes()
+            fetchQuizzes(),
+            fetchWrongQuestions()
         ]);
         const fails = results.filter(r => !r).length;
         state.lastUpdated = new Date();
         updateLastUpdated();
-        if (fails === 4) showToast('Không thể kết nối máy chủ. Kiểm tra backend & SQL Server.', 'error');
+        if (fails === results.length) showToast('Không thể kết nối máy chủ. Kiểm tra backend & SQL Server.', 'error');
         else if (fails > 0) showToast('Một số dữ liệu không tải được (xem Console log).', 'warning');
         else if (!silent) showToast('Đã làm mới dữ liệu từ Data Warehouse.', 'success');
     } catch (e) {
@@ -357,12 +369,25 @@ async function fetchQuizzes() {
     } catch (e) { console.error('Lỗi quizzes:', e); return false; }
 }
 
+// 5. WRONG QUESTIONS — ngân hàng câu hỏi trả lời sai (Ôn tập)
+async function fetchWrongQuestions() {
+    try {
+        const res = await ApiService.getWrongQuestions('all');
+        if (!res.success) return false;
+        state.wrongQuestions = res.data || [];
+        populateCourseSelect($('reviewCourse'), state.wrongQuestions.map(q => q.CourseName), state.review.course);
+        renderWrongQuestions();
+        return true;
+    } catch (e) { console.error('Lỗi wrong-questions:', e); return false; }
+}
+
 // ============================ ACTION CENTER: TABS & PILLS ============================
 function switchTab(tab) {
     state.activeTab = tab;
     document.querySelectorAll('#actionCenter .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     $('panel-assignments').classList.toggle('active', tab === 'assignments');
     $('panel-quizzes').classList.toggle('active', tab === 'quizzes');
+    $('panel-review').classList.toggle('active', tab === 'review');
 }
 
 function bindPills(rowId, filterKey) {
@@ -573,6 +598,74 @@ function renderQuizzes() {
         </tr>`;
     }).join('');
 }
+
+// ============================ ÔN TẬP CÂU SAI (Review) ============================
+function filterWrongQuestions() {
+    const f = state.review;
+    return state.wrongQuestions.filter(q => {
+        if (f.course !== 'all' && q.CourseName !== f.course) return false;
+        const s = f.search.trim().toLowerCase();
+        if (s) {
+            const hay = `${q.QuestionText || q.QuestionName || ''} ${q.QuizName || ''} ${q.CourseName || ''}`.toLowerCase();
+            if (!hay.includes(s)) return false;
+        }
+        return true;
+    });
+}
+
+function renderWrongQuestions() {
+    const wrap = $('reviewList');
+    if (!wrap) return;
+    const list = filterWrongQuestions();
+    const total = state.wrongQuestions.length;
+
+    const tabCount = $('tabReviewCount');
+    if (tabCount) tabCount.textContent = total;
+
+    if (total === 0) {
+        wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-champagne-glasses"></i><h4>Chưa có câu nào sai</h4><p>Bạn chưa trả lời sai câu trắc nghiệm nào — tiếp tục phát huy nhé!</p></div>`;
+        return;
+    }
+    if (list.length === 0) {
+        wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter"></i><h4>Không có kết quả phù hợp</h4><p>Thử đổi môn học hoặc xóa từ khóa tìm kiếm.</p></div>`;
+        return;
+    }
+
+    // Chỉ xem: hiển thị câu hỏi, đáp án sinh viên đã chọn (sai) và đáp án đúng — không có thao tác làm lại.
+    wrap.innerHTML = list.map((q, idx) => {
+        const scorePct = (q.MaxMark && q.MaxMark > 0) ? Math.round(((q.EarnedMark || 0) / q.MaxMark) * 100) : (q.Fraction != null ? Math.round(q.Fraction * 100) : null);
+        return `
+        <div class="review-item" data-idx="${idx}">
+            <button type="button" class="review-item-head">
+                <div class="review-item-main">
+                    <span class="course-name">${escapeHtml(q.CourseName)}</span>
+                    <span class="review-quiz-name"><i class="fa-solid fa-stopwatch-20"></i> ${escapeHtml(q.QuizName)}</span>
+                </div>
+                <div class="review-item-meta">
+                    ${scorePct !== null ? `<span class="badge badge-danger">${scorePct}%</span>` : '<span class="badge badge-danger">Sai</span>'}
+                    <i class="fa-solid fa-chevron-down review-chevron"></i>
+                </div>
+            </button>
+            <p class="review-question-text">${escapeHtml(q.QuestionText || q.QuestionName)}</p>
+            <div class="review-answer-body">
+                <div class="review-answer-row review-answer-wrong">
+                    <i class="fa-solid fa-xmark"></i>
+                    <div><span class="review-answer-label">Bạn đã chọn (sai)</span><p>${escapeHtml(q.StudentResponse)}</p></div>
+                </div>
+                <div class="review-answer-row review-answer-correct">
+                    <i class="fa-solid fa-check"></i>
+                    <div><span class="review-answer-label">Đáp án đúng</span><p>${escapeHtml(q.RightAnswer)}</p></div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    wrap.querySelectorAll('.review-item-head').forEach(btn => {
+        btn.addEventListener('click', () => btn.closest('.review-item').classList.toggle('open'));
+    });
+}
+
+
 
 // ============================ TRANSCRIPT (Bảng điểm) ============================
 function sortVal(c, key) {
@@ -940,14 +1033,17 @@ function bindEvents() {
     // Tìm kiếm (debounce 200ms)
     const onAssignSearch = debounce(() => { state.assign.search = $('assignSearch').value; renderAssignments(); }, 200);
     const onQuizSearch = debounce(() => { state.quiz.search = $('quizSearch').value; renderQuizzes(); }, 200);
+    const onReviewSearch = debounce(() => { state.review.search = $('reviewSearch').value; renderWrongQuestions(); }, 200);
     $('assignSearch').addEventListener('input', onAssignSearch);
     $('quizSearch').addEventListener('input', onQuizSearch);
+    $('reviewSearch').addEventListener('input', onReviewSearch);
 
     // Lọc môn + sắp xếp
     $('assignCourse').addEventListener('change', (e) => { state.assign.course = e.target.value; renderAssignments(); });
     $('assignSort').addEventListener('change', (e) => { state.assign.sort = e.target.value; renderAssignments(); });
     $('quizCourse').addEventListener('change', (e) => { state.quiz.course = e.target.value; renderQuizzes(); });
     $('quizSort').addEventListener('change', (e) => { state.quiz.sort = e.target.value; renderQuizzes(); });
+    $('reviewCourse').addEventListener('change', (e) => { state.review.course = e.target.value; renderWrongQuestions(); });
 
     // Filter phổ điểm theo năm (Nút bấm: Tất cả / Năm nay / Năm trước)
     document.querySelectorAll('#scoreYearToggle button').forEach(btn => {
@@ -1002,7 +1098,8 @@ function bindEvents() {
         const tag = (document.activeElement && document.activeElement.tagName) || '';
         if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return;
         e.preventDefault();
-        const input = state.activeTab === 'assignments' ? $('assignSearch') : $('quizSearch');
+        const searchInputs = { assignments: 'assignSearch', quizzes: 'quizSearch', review: 'reviewSearch' };
+        const input = $(searchInputs[state.activeTab] || 'assignSearch');
         input.focus();
         input.select();
     });

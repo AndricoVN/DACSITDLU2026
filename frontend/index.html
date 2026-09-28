@@ -196,6 +196,10 @@
                         <i class="fa-solid fa-stopwatch-20"></i> Quiz & Kiểm tra
                         <span class="tab-count" id="tabQuizCount">0</span>
                     </button>
+                    <button class="tab" data-tab="review" role="tab">
+                        <i class="fa-solid fa-book-open-reader"></i> Ôn tập câu sai
+                        <span class="tab-count" id="tabReviewCount">0</span>
+                    </button>
                 </div>
 
                 <!-- PANEL: ASSIGNMENTS -->
@@ -279,6 +283,24 @@
                             <tbody id="quizzesTableBody"></tbody>
                         </table>
                     </div>
+                </div>
+
+                <!-- PANEL: ÔN TẬP CÂU SAI -->
+                <div class="tab-panel" id="panel-review">
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="reviewSearch" placeholder="Tìm câu hỏi, bài kiểm tra hoặc môn học..." autocomplete="off">
+                        </div>
+                        <select id="reviewCourse" class="custom-select" title="Lọc theo môn học">
+                            <option value="all">Tất cả môn học</option>
+                        </select>
+                    </div>
+                    <p class="section-desc" style="margin: -0.4rem 0 0.9rem;">
+                        <i class="fa-solid fa-circle-info text-cyan"></i>
+                        Các câu hỏi trắc nghiệm bạn từng trả lời sai — nhấn vào từng câu để xem đáp án bạn đã chọn và đáp án đúng.
+                    </p>
+                    <div class="review-list" id="reviewList"></div>
                 </div>
             </section>
 

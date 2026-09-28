@@ -3,10 +3,10 @@
  * Backend REST API cho Cổng Học tập Cá nhân Sinh viên DLU
  * Đã FIX: Chỉ lấy Deadline, Quiz, và Điểm của đúng các môn mà sinh viên đó đang học!
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const sql = require('mssql');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -415,6 +415,60 @@ app.get('/api/student/quizzes', authenticateToken, async (req, res) => {
             LEFT JOIN Fact_Quiz_Attempts fqa ON (dq.QuizKey = fqa.QuizKey AND fqa.UserKey = @userKey)
             ORDER BY dq.TimeClose ASC;
         `;
+        const result = await request.query(query);
+        res.json({ success: true, data: result.recordset });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// =========================================================================
+// API 6: NGÂN HÀNG CÂU HỎI TRẮC NGHIỆM SAI (GÓC ÔN TẬP CHO SINH VIÊN)
+// =========================================================================
+app.get('/api/student/wrong-questions', authenticateToken, async (req, res) => {
+    try {
+        const { userKey } = req.user;
+        const { courseKey } = req.query;
+        const pool = await poolPromise;
+        const request = pool.request().input('userKey', sql.Int, userKey);
+
+        let query = `
+            SELECT 
+                fqa.QuestionAttemptKey,
+                fqa.SourceQAID,
+                dc.CourseKey,
+                dc.CourseName,
+                dc.CourseShortName,
+                dqz.QuizKey,
+                dqz.QuizName,
+                dq.QuestionKey,
+                dq.QuestionName,
+                COALESCE(dq.QuestionText, dq.QuestionName) AS QuestionText,
+                dq.QuestionType,
+                fqa.Slot,
+                fqa.MaxMark,
+                fqa.EarnedMark,
+                fqa.Fraction,
+                COALESCE(fqa.StudentResponse, N'(Chưa trả lời hoặc hết giờ)') AS StudentResponse,
+                COALESCE(fqa.RightAnswer, N'(Chưa có đáp án lưu)') AS RightAnswer,
+                fqa.IsWrong,
+                fqa.DateKey,
+                dd.FullDate
+            FROM Fact_Question_Attempts fqa
+            JOIN Dim_Course dc ON fqa.CourseKey = dc.CourseKey
+            JOIN Dim_Quiz dqz ON fqa.QuizKey = dqz.QuizKey
+            JOIN Dim_Question dq ON fqa.QuestionKey = dq.QuestionKey
+            LEFT JOIN Dim_Date dd ON fqa.DateKey = dd.DateKey
+            WHERE fqa.UserKey = @userKey AND fqa.IsWrong = 1
+        `;
+
+        if (courseKey && courseKey !== 'all') {
+            request.input('courseKey', sql.Int, parseInt(courseKey, 10));
+            query += ` AND fqa.CourseKey = @courseKey `;
+        }
+
+        query += ` ORDER BY fqa.DateKey DESC, dc.CourseName ASC;`;
+
         const result = await request.query(query);
         res.json({ success: true, data: result.recordset });
     } catch (err) {

@@ -424,10 +424,22 @@ def sync_fact_question_attempts(m_conn, s_conn, user_map, quiz_map, question_map
     print("[*] Đồng bộ Fact_Question_Attempts...")
     sql_extract = """
         SELECT qa.id AS SourceQAID, qat.userid AS SourceUserID, qat.quiz AS SourceQuizID, q.course AS SourceCourseID,
-               qa.questionid AS SourceQuestionID, qa.slot AS Slot, qa.maxmark AS MaxMark, qa.maxfraction AS MaxFraction, qa.timemodified AS TimeModified
+               qa.questionid AS SourceQuestionID, qa.slot AS Slot, qa.maxmark AS MaxMark, qas.fraction AS MaxFraction, qa.timemodified AS TimeModified,
+               qa.responsesummary AS StudentResponse, qa.rightanswer AS RightAnswer
         FROM question_attempts qa
         JOIN quiz_attempts qat ON qa.questionusageid = qat.uniqueid
-        JOIN quiz q ON qat.quiz = q.id;
+        JOIN quiz q ON qat.quiz = q.id
+        JOIN (
+            SELECT s1.questionattemptid, s1.fraction
+            FROM question_attempt_steps s1
+            WHERE s1.fraction IS NOT NULL
+              AND s1.sequencenumber = (
+                  SELECT MAX(s2.sequencenumber)
+                  FROM question_attempt_steps s2
+                  WHERE s2.questionattemptid = s1.questionattemptid AND s2.fraction IS NOT NULL
+              )
+        ) qas ON qas.questionattemptid = qa.id
+        WHERE qat.state = 'finished';
     """
     with m_conn.cursor() as cursor:
         cursor.execute(sql_extract)
@@ -452,17 +464,22 @@ def sync_fact_question_attempts(m_conn, s_conn, user_map, quiz_map, question_map
         is_correct = 1 if fraction >= 1.0 else 0
         is_wrong = 1 if fraction < 0.5 else 0
         
+        student_response = r['StudentResponse'] if r['StudentResponse'] else None
+        right_answer = r['RightAnswer'] if r['RightAnswer'] else None
+
         insert_batch.append((
             r['SourceQAID'], user_key, quiz_key, question_key, course_key, date_key,
-            r['Slot'], max_mark, earned_mark, fraction, is_correct, is_wrong
+            r['Slot'], max_mark, earned_mark, fraction, is_correct, is_wrong,
+            student_response, right_answer
         ))
         
         if len(insert_batch) >= 5000:
             s_cursor.executemany("""
                 INSERT INTO Fact_Question_Attempts (
                     SourceQAID, UserKey, QuizKey, QuestionKey, CourseKey, DateKey,
-                    Slot, MaxMark, EarnedMark, Fraction, IsCorrect, IsWrong
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    Slot, MaxMark, EarnedMark, Fraction, IsCorrect, IsWrong,
+                    StudentResponse, RightAnswer
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """, insert_batch)
             s_conn.commit()
             insert_batch.clear()
@@ -471,8 +488,9 @@ def sync_fact_question_attempts(m_conn, s_conn, user_map, quiz_map, question_map
         s_cursor.executemany("""
             INSERT INTO Fact_Question_Attempts (
                 SourceQAID, UserKey, QuizKey, QuestionKey, CourseKey, DateKey,
-                Slot, MaxMark, EarnedMark, Fraction, IsCorrect, IsWrong
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                Slot, MaxMark, EarnedMark, Fraction, IsCorrect, IsWrong,
+                StudentResponse, RightAnswer
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, insert_batch)
         s_conn.commit()
     print(f"[+] Fact_Question_Attempts hoàn tất: {len(rows)} câu hỏi tương tác.")

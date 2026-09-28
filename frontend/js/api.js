@@ -61,5 +61,13 @@ const ApiService = {
             headers: this.getAuthHeaders()
         });
         return await response.json();
+    },
+
+    async getWrongQuestions(courseKey = 'all') {
+        const qs = courseKey && courseKey !== 'all' ? `?courseKey=${encodeURIComponent(courseKey)}` : '';
+        const response = await fetch(`${API_BASE_URL}/student/wrong-questions${qs}`, {
+            headers: this.getAuthHeaders()
+        });
+        return await response.json();
     }
 };
