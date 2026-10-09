@@ -1,6 +1,3 @@
-/* =========================================================================
-   STYLE.CSS - MODERN DARK GLASSMORPHISM (DLU STUDENT PORTAL)
-   ========================================================================= */
 
 :root {
     --bg-main: #0f172a;
@@ -19,7 +16,6 @@
     --color-amber: #f59e0b;
     --color-purple: #a855f7;
 
-    /* Biến mở rộng v2 */
     --bg-table-head: rgba(15, 23, 42, 0.88);
     --color-course: #38bdf8;
     --ring-track: rgba(255, 255, 255, 0.09);
@@ -33,9 +29,6 @@
     --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* =========================================================================
-   LIGHT THEME (bật/tắt bằng body.light qua nút ☀/🌙)
-   ========================================================================= */
 body.light {
     --bg-main: #eef2f7;
     --bg-card: rgba(255, 255, 255, 0.88);
@@ -89,9 +82,6 @@ body {
 
 .hidden { display: none !important; }
 
-/* =========================================================================
-   LOGIN SCREEN
-   ========================================================================= */
 .auth-wrapper {
     min-height: 100vh;
     display: flex;
@@ -221,9 +211,6 @@ body {
     color: var(--text-muted);
 }
 
-/* =========================================================================
-   AUTHENTICATED DASHBOARD
-   ========================================================================= */
 .app-layout {
     display: flex;
     flex-direction: column;
@@ -319,9 +306,6 @@ body {
     color: #fff;
 }
 
-/* =========================================================================
-   DASHBOARD BODY & CARDS
-   ========================================================================= */
 .dashboard-body {
     padding: 2rem 2.5rem;
     display: flex;
@@ -374,7 +358,6 @@ body {
 .alert-content h4 { font-size: 0.95rem; color: #fca5a5; font-weight: 700; }
 .alert-content p { font-size: 0.82rem; color: #e2e8f0; margin-top: 0.2rem; }
 
-/* 1. KPI CARDS */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -438,9 +421,6 @@ body {
     color: var(--text-muted);
 }
 
-/* =========================================================================
-   TABLES & BADGES
-   ========================================================================= */
 .card-header {
     display: flex;
     justify-content: space-between;
@@ -486,9 +466,6 @@ body {
 .header-actions { display: flex; align-items: center; gap: 0.7rem; }
 .last-updated { font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; }
 
-/* =========================================================================
-   TABS (Action Center)
-   ========================================================================= */
 .tabs {
     display: flex;
     gap: 0.4rem;
@@ -528,9 +505,6 @@ body {
 .tab-panel { display: none; }
 .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
 
-/* =========================================================================
-   TOOLBAR: Tìm kiếm + Bộ lọc + Sắp xếp
-   ========================================================================= */
 .toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
 .search-box {
     flex: 1 1 230px;
@@ -588,9 +562,6 @@ body {
 .pill.active { background: var(--color-cyan); border-color: var(--color-cyan); color: #0f172a; }
 .result-count { margin-left: auto; font-size: 0.74rem; color: var(--text-muted); }
 
-/* =========================================================================
-   TIMELINE STRIP (7 ngày tới)
-   ========================================================================= */
 .timeline-strip { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 1.1rem; }
 .tl-chip {
     display: inline-flex;
@@ -620,7 +591,6 @@ body {
     border: 1px solid var(--border-glass);
 }
 
-/* Vùng bảng cuộn được trong card (không cuộn cả trang) */
 .table-scroll {
     max-height: 430px;
     overflow: auto;
@@ -634,7 +604,6 @@ body {
 .table-scroll .custom-table th { position: sticky; top: 0; z-index: 2; }
 .table-scroll .custom-table tbody tr:last-child td { border-bottom: none; }
 
-/* Màu trạng thái đếm ngược */
 .tone-danger { color: #f87171; }
 .tone-warning { color: #fbbf24; }
 .tone-success { color: #34d399; }
@@ -667,14 +636,11 @@ body {
 .attempt-note { display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
 .classify-small { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem; }
 
-/* Ô tiến độ trong bảng điểm */
 .progress-cell { min-width: 130px; }
 .progress-cell .mini-progress { width: 100%; margin-bottom: 0.28rem; }
 .progress-cell .mini-progress:last-of-type { margin-bottom: 0.35rem; }
 .progress-label { display: block; font-size: 0.7rem; color: var(--text-secondary); }
 
-/* Empty state */
-/* ========== ÔN TẬP CÂU SAI (Review Accordion) ========== */
 .review-list { display: flex; flex-direction: column; gap: 0.7rem; }
 .review-item {
     border: 1px solid var(--border-glass);
@@ -743,7 +709,6 @@ body {
 .empty-state h4 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.25rem; }
 .empty-state p { font-size: 0.8rem; }
 
-/* Skeleton loading */
 .skeleton {
     height: 13px;
     border-radius: 6px;
@@ -755,7 +720,6 @@ body {
 .skeleton.w-60 { width: 60%; }
 .skeleton.w-80 { width: 80%; }
 
-/* Tiêu đề cột có thể sắp xếp */
 .th-sortable { cursor: pointer; user-select: none; }
 .th-sortable:hover { color: var(--color-cyan); }
 .th-sortable::after {
@@ -808,9 +772,6 @@ body {
 .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
 .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
 
-/* =========================================================================
-   PROGRESS RING (KPI) & KPI CLICKABLE
-   ========================================================================= */
 .progress-ring { width: 58px; height: 58px; transform: rotate(-90deg); flex-shrink: 0; }
 .progress-ring circle { fill: none; stroke-width: 4.5; }
 .ring-bg { stroke: var(--ring-track); }
@@ -826,7 +787,6 @@ body {
 }
 body.light .kpi-clickable:hover { box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14); }
 
-/* Nút hành động trong banner cảnh báo */
 .btn-banner-action {
     margin-left: auto;
     background: var(--color-danger);
@@ -843,7 +803,6 @@ body.light .kpi-clickable:hover { box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14)
 }
 .btn-banner-action:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4); }
 
-/* Nút đổi theme ở header */
 .btn-icon-header {
     width: 38px;
     height: 38px;
@@ -860,7 +819,6 @@ body.light .kpi-clickable:hover { box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14)
 }
 .btn-icon-header:hover { border-color: var(--color-cyan); color: var(--color-cyan); }
 
-/* Toggle loại biểu đồ */
 .chart-toggle {
     display: flex;
     gap: 0.25rem;
@@ -886,9 +844,6 @@ body.light .kpi-clickable:hover { box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14)
 }
 .chart-toggle button.active { background: var(--color-cyan); color: #0f172a; }
 
-/* =========================================================================
-   TOAST NOTIFICATION
-   ========================================================================= */
 .toast-container {
     position: fixed;
     bottom: 1.3rem;
@@ -955,7 +910,6 @@ body.light .kpi-clickable:hover { box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14)
     border-top: 1px solid var(--border-glass);
 }
 
-/* Đăng nhập: hiệu ứng rung khi sai mật khẩu */
 .login-card.shake { animation: shake 0.4s ease; }
 
 @keyframes fadeIn {

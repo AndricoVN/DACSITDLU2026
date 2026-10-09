@@ -100,10 +100,6 @@ def calculate_letter_grade(score_10):
     else:
         return 'F', 'Kém (Rớt môn)'
 
-# ==========================================
-# GIAI ĐOẠN 1: ĐỒNG BỘ DIMENSIONS
-# ==========================================
-
 def sync_dim_users(m_conn, s_conn):
     print("[*] Đồng bộ Dim_User (Tài khoản & Lớp sinh hoạt DLU)...")
     sql_extract = """
@@ -289,10 +285,6 @@ def sync_dim_questions(m_conn, s_conn):
         ))
     s_conn.commit()
     print(f"[+] Dim_Question hoàn tất: {len(rows)} câu hỏi.")
-
-# ==========================================
-# GIAI ĐOẠN 2: ĐỒNG BỘ FACTS
-# ==========================================
 
 def load_lookups(s_conn):
     s_cursor = s_conn.cursor()

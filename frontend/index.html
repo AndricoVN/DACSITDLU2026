@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cổng Thông Tin Học Tập Sinh Viên | Trường Đại học Đà Lạt</title>
-    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- 1. MÀN HÌNH ĐĂNG NHẬP (LOGIN VIEW) -->
     <div id="loginView" class="auth-wrapper">
         <div class="glass-card login-card">
             <div class="login-brand">
@@ -44,10 +40,8 @@
         </div>
     </div>
 
-    <!-- 2. MÀN HÌNH DASHBOARD SINH VIÊN (AUTHENTICATED VIEW) -->
     <div id="dashboardView" class="app-layout hidden">
         
-        <!-- HEADER PROFILE -->
         <header class="top-nav">
             <div class="nav-brand">
                 <div class="brand-icon">
@@ -74,10 +68,8 @@
             </div>
         </header>
 
-        <!-- DASHBOARD BODY -->
         <main class="dashboard-body">
             
-            <!-- CẢNH BÁO HỌC VỤ KHẨN CẤP (NẾU CÓ) -->
             <div id="urgentAlertBox" class="glass-card urgent-banner hidden">
                 <div class="alert-icon-pulse">
                     <i class="fa-solid fa-bell"></i>
@@ -91,9 +83,7 @@
                 </button>
             </div>
 
-            <!-- 1. 4 ACTION CARDS THIẾT THỰC DÀNH CHO SINH VIÊN -->
             <section class="kpi-grid">
-                <!-- Card 1: Điểm GPA tích lũy -->
                 <div class="glass-card kpi-card kpi-clickable" id="kpiGpa" title="Xem bảng điểm chi tiết">
                     <div class="card-header-mini">
                         <span class="kpi-title">GPA Tích lũy (Hệ 10 & 4)</span>
@@ -111,7 +101,6 @@
                     <p class="kpi-subtitle"><i class="fa-solid fa-book-bookmark"></i> Điểm tổng kết trung bình các môn</p>
                 </div>
 
-                <!-- Card 2: Hạn chót gấp (< 48 giờ) -->
                 <div class="glass-card kpi-card kpi-clickable" id="kpiUrgent" title="Xem danh sách cần nộp gấp">
                     <div class="card-header-mini">
                         <span class="kpi-title">Hạn nộp Khẩn cấp (&lt; 48h)</span>
@@ -126,7 +115,6 @@
                     <p class="kpi-subtitle" id="subUrgentText"><i class="fa-solid fa-clock"></i> Không có bài tập sắp đến hạn</p>
                 </div>
 
-                <!-- Card 3: Kỷ luật nộp bài -->
                 <div class="glass-card kpi-card kpi-clickable" id="kpiOnTime" title="Xem toàn bộ bài tập">
                     <div class="card-header-mini">
                         <span class="kpi-title">Kỷ luật Nộp bài tập</span>
@@ -147,7 +135,6 @@
                     <p class="kpi-subtitle"><i class="fa-solid fa-chart-pie"></i> Tỷ lệ bài nộp trước Deadline</p>
                 </div>
 
-                <!-- Card 4: Bài kiểm tra & Quiz -->
                 <div class="glass-card kpi-card kpi-clickable" id="kpiQuiz" title="Xem danh sách Quiz">
                     <div class="card-header-mini">
                         <span class="kpi-title">Điểm Quiz Trắc nghiệm TB</span>
@@ -169,7 +156,6 @@
                 </div>
             </section>
 
-            <!-- 2. TRUNG TÂM HÀNH ĐỘNG: BÀI TẬP + QUIZ (TAB) -->
             <section class="glass-card action-center" id="actionCenter">
                 <div class="card-header">
                     <div class="header-left">
@@ -202,7 +188,6 @@
                     </button>
                 </div>
 
-                <!-- PANEL: ASSIGNMENTS -->
                 <div class="tab-panel active" id="panel-assignments">
                     <div class="toolbar">
                         <div class="search-box">
@@ -244,7 +229,6 @@
                     </div>
                 </div>
 
-                <!-- PANEL: QUIZZES -->
                 <div class="tab-panel" id="panel-quizzes">
                     <div class="toolbar">
                         <div class="search-box">
@@ -285,7 +269,6 @@
                     </div>
                 </div>
 
-                <!-- PANEL: ÔN TẬP CÂU SAI -->
                 <div class="tab-panel" id="panel-review">
                     <div class="toolbar">
                         <div class="search-box">
@@ -304,9 +287,7 @@
                 </div>
             </section>
 
-            <!-- 3. TIẾN ĐỘ HỌC TẬP & BẢNG ĐIỂM CÁC HỌC PHẦN (TRANSCRIPT) -->
             <div class="two-column-grid">
-                <!-- Bảng Điểm Từng Môn Học -->
                 <section class="glass-card" id="transcriptSection">
                     <div class="card-header">
                         <div class="header-left">
@@ -335,7 +316,6 @@
                     </div>
                 </section>
 
-                <!-- Biểu đồ Phổ Điểm Học Phần 1 - 10 -->
                 <section class="glass-card">
                     <div class="card-header">
                         <div class="header-left">
@@ -376,7 +356,6 @@
 
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Scripts -->
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>
 </body>

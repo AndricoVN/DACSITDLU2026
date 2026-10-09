@@ -5,7 +5,6 @@ Sinh dữ liệu bảng Dim_Date từ 2024 đến 2030 vào SQL Server Data Ware
 import datetime
 import pyodbc
 
-# Cấu hình kết nối SQL Server
 DWH_CONN_STR = (
     "DRIVER={ODBC Driver 18 for SQL Server};"
     "SERVER=sqlserver,1433;"

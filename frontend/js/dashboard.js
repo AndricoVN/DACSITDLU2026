@@ -27,7 +27,6 @@ const state = {
 
 let scoreDistChartInstance = null;
 
-// ============================ HELPERS ============================
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(str) {
@@ -96,7 +95,6 @@ function setRing(svgId, pct) {
     fg.setAttribute('stroke-dashoffset', (RING_CIRCUMFERENCE * (1 - clamped / 100)).toFixed(1));
 }
 
-// ============================ TOAST ============================
 function showToast(message, type = 'info') {
     const wrap = $('toastContainer');
     if (!wrap) return;
@@ -116,7 +114,6 @@ function showToast(message, type = 'info') {
     }, 3500);
 }
 
-// ============================ THEME ============================
 function applyTheme(theme, rerenderChart = true) {
     document.body.classList.toggle('light', theme === 'light');
     localStorage.setItem('dlu_theme', theme);
@@ -128,7 +125,6 @@ function toggleTheme() {
     applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
 }
 
-// ============================ AUTH ============================
 function checkAuthState() {
     const token = ApiService.getToken();
     const loginView = $('loginView');
@@ -193,7 +189,6 @@ function initStudentProfile() {
     }
 }
 
-// ============================ SKELETON ============================
 function renderSkeletonRow(tbodyId, cols, rows) {
     const tbody = $(tbodyId);
     if (!tbody) return;
@@ -224,12 +219,10 @@ function renderSkeletonAll() {
     if (tl) tl.innerHTML = '';
 }
 
-// ============================ EMPTY STATE ============================
 function emptyStateHTML(icon, title, desc) {
     return `<tr><td colspan="99"><div class="empty-state"><i class="fa-solid ${icon}"></i><h4>${title}</h4><p>${desc}</p></div></td></tr>`;
 }
 
-// ============================ DATA LOADING ============================
 function updateLastUpdated() {
     const el = $('lastUpdated');
     if (!el || !state.lastUpdated) return;
@@ -262,7 +255,6 @@ async function loadStudentData(silent = false) {
     }
 }
 
-// 1. SUMMARY — 4 thẻ KPI
 async function fetchSummary() {
     try {
         const res = await ApiService.getSummary();
@@ -284,7 +276,6 @@ function renderSummary(d) {
     else if (g10 >= 5.0) badgeGpa.className = 'badge badge-warning';
     else badgeGpa.className = 'badge badge-danger';
 
-    // Hạn khẩn cấp
     $('valUrgentDeadlines').textContent = d.urgentDeadlines;
     const subUrgent = $('subUrgentText');
     const alertBanner = $('urgentAlertBox');
@@ -297,17 +288,14 @@ function renderSummary(d) {
         alertBanner.classList.add('hidden');
     }
 
-    // On-time rate + progress ring
     $('valOnTimeRate').textContent = `${d.onTimeRate}%`;
     setRing('ringOnTime', parseFloat(d.onTimeRate) || 0);
 
-    // Quiz + progress ring (điểm /10 -> %)
     $('valAvgQuizScore').textContent = `${d.avgQuizScore} / 10`;
     $('valQuizCount').textContent = `${d.completedQuizzes} bài hoàn thành`;
     setRing('ringQuiz', (parseFloat(d.avgQuizScore) || 0) * 10);
 }
 
-// 2. DEADLINES — bài tập & hạn nộp
 async function fetchDeadlines() {
     try {
         const res = await ApiService.getDeadlines();
@@ -347,7 +335,6 @@ function renderTimeline() {
     ).join('');
 }
 
-// 3. COURSES — bảng điểm
 async function fetchCourses() {
     try {
         const res = await ApiService.getCourses();
@@ -357,7 +344,6 @@ async function fetchCourses() {
     } catch (e) { console.error('Lỗi courses:', e); return false; }
 }
 
-// 4. QUIZZES — bài kiểm tra trắc nghiệm
 async function fetchQuizzes() {
     try {
         const res = await ApiService.getQuizzes();
@@ -369,7 +355,6 @@ async function fetchQuizzes() {
     } catch (e) { console.error('Lỗi quizzes:', e); return false; }
 }
 
-// 5. WRONG QUESTIONS — ngân hàng câu hỏi trả lời sai (Ôn tập)
 async function fetchWrongQuestions() {
     try {
         const res = await ApiService.getWrongQuestions('all');
@@ -381,7 +366,6 @@ async function fetchWrongQuestions() {
     } catch (e) { console.error('Lỗi wrong-questions:', e); return false; }
 }
 
-// ============================ ACTION CENTER: TABS & PILLS ============================
 function switchTab(tab) {
     state.activeTab = tab;
     document.querySelectorAll('#actionCenter .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -412,7 +396,6 @@ function setPill(rowId, status) {
     if (target) target.click();
 }
 
-// ============================ ASSIGNMENTS ============================
 // Phân loại: submitted / overdue / urgent / pending (draft chưa gửi vẫn tính là việc cần làm)
 function assignCategory(item) {
     if (item.SubmissionStatus === 'submitted') return 'submitted';
@@ -480,7 +463,6 @@ function renderAssignments() {
         const cat = assignCategory(item);
         const mins = liveMins(item);
 
-        // Cột "Còn lại": text + thanh progress thời gian
         let remainCell;
         if (item.DueDate == null) {
             remainCell = '<span class="text-muted-sm">Không giới hạn</span>';
@@ -489,14 +471,12 @@ function renderAssignments() {
             remainCell = `<div class="countdown-wrap"><span class="countdown-text tone-${r.tone}">${r.text}</span><div class="mini-progress"><span class="tone-${r.tone}" style="width:${deadlinePct(mins)}%"></span></div></div>`;
         }
 
-        // Cột trạng thái
         let badge;
         if (cat === 'submitted') badge = item.IsLate ? '<span class="badge badge-warning">Đã nộp (Trễ)</span>' : '<span class="badge badge-success">Đã nộp đúng hạn</span>';
         else if (cat === 'overdue') badge = '<span class="badge badge-danger">Quá hạn nộp</span>';
         else if (cat === 'urgent') badge = '<span class="badge badge-danger">Sắp hết hạn</span>';
         else badge = item.SubmissionStatus === 'draft' ? '<span class="badge badge-warning">Nháp — chưa gửi</span>' : '<span class="badge badge-info">Chưa nộp</span>';
 
-        // Cột điểm
         let grade = '<span class="text-muted-sm">--</span>';
         if (item.GradeScaled10 !== null && item.GradeScaled10 !== undefined && item.GradeScaled10 > 0) {
             grade = `<span class="score-strong ${item.GradeScaled10 >= 5 ? 'score-pass' : 'score-fail'}">${item.GradeScaled10.toFixed(2)}đ</span>`;
@@ -515,7 +495,6 @@ function renderAssignments() {
     }).join('');
 }
 
-// ============================ QUIZZES ============================
 // Phân loại: done / doing / closed / pending (IsClosed do backend tính bằng đồng hồ DB)
 function quizCategory(q) {
     if (q.State === 'finished') return 'done';
@@ -573,7 +552,6 @@ function renderQuizzes() {
         const durationText = q.TimeLimitMinutes > 0 ? `${q.TimeLimitMinutes} phút` : 'Tự do';
         const closeFormatted = q.TimeClose ? fmtDate(q.TimeClose) : 'Không đóng';
 
-        // Cột điểm: kèm số lần làm + thời gian làm thực tế
         let scoreCell = '<span class="text-muted-sm">--</span>';
         if (q.State === 'finished' && q.ScoreScaled10 !== null && q.ScoreScaled10 !== undefined) {
             scoreCell = `<span class="score-strong ${q.ScoreScaled10 >= 5 ? 'score-pass' : 'score-fail'}">${q.ScoreScaled10.toFixed(2)}đ</span>` +
@@ -599,7 +577,6 @@ function renderQuizzes() {
     }).join('');
 }
 
-// ============================ ÔN TẬP CÂU SAI (Review) ============================
 function filterWrongQuestions() {
     const f = state.review;
     return state.wrongQuestions.filter(q => {
@@ -667,7 +644,6 @@ function renderWrongQuestions() {
 
 
 
-// ============================ TRANSCRIPT (Bảng điểm) ============================
 function sortVal(c, key) {
     if (key === 'name') return c.CourseName || '';
     if (key === 'quiz') return c.QuizAverage ?? -1;
@@ -740,7 +716,6 @@ function progressCell(c) {
     return `<div class="progress-cell">${bars}<span class="progress-label">${labels.join(' · ')}</span></div>`;
 }
 
-// ============================ PHỔ ĐIỂM (1 - 10) & BỘ LỌC NĂM ============================
 function chartThemeColors() {
     const cs = getComputedStyle(document.body);
     const light = document.body.classList.contains('light');
@@ -761,7 +736,6 @@ function updateScoreYearOptions() {
     const currentYear = maxYear || 2026;
     const prevYear = currentYear - 1;
 
-    // Cập nhật nhãn trên các nút bấm
     const btnCurrent = document.querySelector('#scoreYearToggle button[data-year="current"]');
     if (btnCurrent) btnCurrent.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Năm nay (${currentYear})`;
 
@@ -798,14 +772,12 @@ function renderScoreDistributionChart() {
         return;
     }
 
-    // 1. Xác định năm hiện tại & các năm có trong CSDL
     const yearsInData = state.courses.map(c => Number(c.Year)).filter(n => !isNaN(n) && n > 0);
     const maxYear = yearsInData.length ? Math.max(...yearsInData) : new Date().getFullYear();
     const currentYear = maxYear || 2026;
     const prevYear = currentYear - 1;
     const filter = state.scoreYearFilter;
 
-    // 2. Lọc học phần theo bộ lọc năm
     let filteredCourses = state.courses;
     let currentFilterLabel = 'Tất cả các năm';
 
@@ -832,7 +804,6 @@ function renderScoreDistributionChart() {
         }
     }
 
-    // 3. Phân bổ điểm 1-10 (Thang 1 đến 10)
     const scoreLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
     const counts = new Array(10).fill(0);
     const coursesInScore = Array.from({ length: 10 }, () => []);
@@ -851,18 +822,17 @@ function renderScoreDistributionChart() {
         }
     });
 
-    // Bảng màu phân hóa học lực cho từng mức điểm 1-10
     const barColors = [
-        'rgba(239, 68, 68, 0.85)',   // 1 điểm: Đỏ rực (Rớt môn)
-        'rgba(239, 68, 68, 0.85)',   // 2 điểm: Đỏ rực
-        'rgba(239, 68, 68, 0.85)',   // 3 điểm: Đỏ rực
-        'rgba(249, 115, 22, 0.85)',  // 4 điểm: Cam (Trung bình yếu / D)
-        'rgba(234, 179, 8, 0.85)',   // 5 điểm: Vàng hổ phách (Trung bình / C)
-        'rgba(234, 179, 8, 0.85)',   // 6 điểm: Vàng hổ phách (Trung bình / C)
-        'rgba(16, 185, 129, 0.85)',  // 7 điểm: Xanh lá (Khá / B)
-        'rgba(16, 185, 129, 0.85)',  // 8 điểm: Xanh lá (Khá / B)
-        'rgba(6, 182, 212, 0.85)',   // 9 điểm: Xanh Cyan (Giỏi / A)
-        'rgba(168, 85, 247, 0.85)'   // 10 điểm: Tím sang trọng (Xuất sắc / A+)
+        'rgba(239, 68, 68, 0.85)',
+        'rgba(239, 68, 68, 0.85)',
+        'rgba(239, 68, 68, 0.85)',
+        'rgba(249, 115, 22, 0.85)',
+        'rgba(234, 179, 8, 0.85)',
+        'rgba(234, 179, 8, 0.85)',
+        'rgba(16, 185, 129, 0.85)',
+        'rgba(16, 185, 129, 0.85)',
+        'rgba(6, 182, 212, 0.85)',
+        'rgba(168, 85, 247, 0.85)'
     ];
     const borderColors = [
         '#ef4444', '#ef4444', '#ef4444',
@@ -949,7 +919,6 @@ function renderScoreDistributionChart() {
         }
     });
 
-    // 4. Render thống kê tóm tắt nhanh
     const summaryEl = $('scoreDistSummary');
     if (summaryEl) {
         const total = filteredCourses.length;
@@ -990,21 +959,18 @@ function renderScoreDistributionChart() {
 // Giữ alias tương thích
 const renderChart = renderScoreDistributionChart;
 
-// ============================ ĐIỀU HƯỚNG TỪ KPI/BANNER ============================
 function goToFilteredTab(tab, pillStatus) {
     switchTab(tab);
     setPill(tab === 'assignments' ? 'assignPills' : 'quizPills', pillStatus);
     $('actionCenter').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// ============================ EVENT BINDINGS ============================
 function debounce(fn, ms) {
     let t;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
 function bindEvents() {
-    // Login / Logout
     $('loginForm').addEventListener('submit', async (e) => { e.preventDefault(); await handleLogin(); });
     $('btnLogout').addEventListener('click', () => {
         if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
@@ -1013,24 +979,19 @@ function bindEvents() {
         }
     });
 
-    // Theme sáng/tối
     $('btnTheme').addEventListener('click', toggleTheme);
 
-    // Refresh thủ công + tự động refresh mỗi 5 phút
     $('btnRefresh').addEventListener('click', () => loadStudentData(false));
     setInterval(() => { if (ApiService.getToken()) loadStudentData(true); }, 5 * 60 * 1000);
 
     // Countdown tick: render lại danh sách bài tập mỗi 30s để "Còn lại" luôn chính xác
     setInterval(() => { if (state.deadlines.length) renderAssignments(); }, 30 * 1000);
 
-    // Tabs
     document.querySelectorAll('#actionCenter .tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
-    // Filter pills
     bindPills('assignPills', 'assign');
     bindPills('quizPills', 'quiz');
 
-    // Tìm kiếm (debounce 200ms)
     const onAssignSearch = debounce(() => { state.assign.search = $('assignSearch').value; renderAssignments(); }, 200);
     const onQuizSearch = debounce(() => { state.quiz.search = $('quizSearch').value; renderQuizzes(); }, 200);
     const onReviewSearch = debounce(() => { state.review.search = $('reviewSearch').value; renderWrongQuestions(); }, 200);
@@ -1038,14 +999,12 @@ function bindEvents() {
     $('quizSearch').addEventListener('input', onQuizSearch);
     $('reviewSearch').addEventListener('input', onReviewSearch);
 
-    // Lọc môn + sắp xếp
     $('assignCourse').addEventListener('change', (e) => { state.assign.course = e.target.value; renderAssignments(); });
     $('assignSort').addEventListener('change', (e) => { state.assign.sort = e.target.value; renderAssignments(); });
     $('quizCourse').addEventListener('change', (e) => { state.quiz.course = e.target.value; renderQuizzes(); });
     $('quizSort').addEventListener('change', (e) => { state.quiz.sort = e.target.value; renderQuizzes(); });
     $('reviewCourse').addEventListener('change', (e) => { state.review.course = e.target.value; renderWrongQuestions(); });
 
-    // Filter phổ điểm theo năm (Nút bấm: Tất cả / Năm nay / Năm trước)
     document.querySelectorAll('#scoreYearToggle button').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('#scoreYearToggle button').forEach(x => x.classList.remove('active'));
@@ -1058,7 +1017,6 @@ function bindEvents() {
         });
     });
 
-    // Filter phổ điểm theo năm (Dropdown chọn từng năm cụ thể)
     const scoreSelect = $('scoreYearSelect');
     if (scoreSelect) {
         scoreSelect.addEventListener('change', (e) => {
@@ -1071,16 +1029,13 @@ function bindEvents() {
         });
     }
 
-    // KPI click → nhảy tới section tương ứng
     $('kpiGpa').addEventListener('click', () => $('transcriptSection').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     $('kpiUrgent').addEventListener('click', () => goToFilteredTab('assignments', 'pending'));
     $('kpiOnTime').addEventListener('click', () => goToFilteredTab('assignments', 'all'));
     $('kpiQuiz').addEventListener('click', () => goToFilteredTab('quizzes', 'all'));
 
-    // Banner cảnh báo: "Xem việc cần làm"
     $('btnViewUrgent').addEventListener('click', () => goToFilteredTab('assignments', 'pending'));
 
-    // Sắp xếp bảng điểm (click tiêu đề cột)
     document.querySelectorAll('#transcriptSection .th-sortable').forEach(th => {
         th.addEventListener('click', () => {
             const key = th.dataset.sort;
@@ -1092,7 +1047,6 @@ function bindEvents() {
         });
     });
 
-    // Phím tắt "/" focus ô tìm kiếm của tab đang mở
     document.addEventListener('keydown', (e) => {
         if (e.key !== '/') return;
         const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -1105,7 +1059,6 @@ function bindEvents() {
     });
 }
 
-// ============================ INIT ============================
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme(localStorage.getItem('dlu_theme') || 'dark', false);
     bindEvents();

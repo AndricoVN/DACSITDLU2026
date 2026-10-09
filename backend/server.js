@@ -1,8 +1,3 @@
-/**
- * server.js
- * Backend REST API cho Cổng Học tập Cá nhân Sinh viên DLU
- * Đã FIX: Chỉ lấy Deadline, Quiz, và Điểm của đúng các môn mà sinh viên đó đang học!
- */
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
@@ -19,7 +14,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Cấu hình kết nối SQL Server
 const dbConfig = {
     user: process.env.DB_USER || 'sa',
     password: process.env.DB_PASSWORD || 'SuperStrongPass123!',
@@ -44,7 +38,6 @@ const poolPromise = new sql.ConnectionPool(dbConfig)
         console.error('[!] Lỗi kết nối SQL Server:', err.message);
     });
 
-// Middleware xác thực Token JWT
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -62,9 +55,6 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// =========================================================================
-// API 1: ĐĂNG NHẬP SINH VIÊN (DÙNG TÀI KHOẢN & MẬT KHẨU MOODLE)
-// =========================================================================
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -88,7 +78,6 @@ app.post('/api/auth/login', async (req, res) => {
 
         const user = result.recordset[0];
 
-        // Chặn nếu không phải sinh viên
         if (!user.IsStudent) {
             return res.status(403).json({ 
                 success: false, 
@@ -142,16 +131,12 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// =========================================================================
-// API 2: THÔNG TIN TỔNG QUAN HỌC TẬP (CHỈ TÍNH MÔN SINH VIÊN THAM GIA)
-// =========================================================================
 app.get('/api/student/summary', authenticateToken, async (req, res) => {
     try {
         const { userKey } = req.user;
         const pool = await poolPromise;
         const request = pool.request().input('userKey', sql.Int, userKey);
 
-        // 1. GPA Tích lũy & Số môn đang học
         const gpaRes = await request.query(`
             SELECT 
                 COUNT(*) AS EnrolledCourses,
@@ -170,7 +155,6 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
         else if (parseFloat(gpa10) >= 5.0) gpaClassification = 'Trung bình';
         else if (parseFloat(gpa10) > 0) gpaClassification = 'Cảnh báo học vụ';
 
-        // 2. Nhiệm vụ & Deadline sắp tới (CHỈ LẤY BÀI TẬP CỦA MÔN SINH VIÊN CÓ HỌC)
         const deadlineRes = await request.query(`
             SELECT 
                 COUNT(*) AS TotalPending,
@@ -184,7 +168,6 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
         `);
         const dlData = deadlineRes.recordset[0] || {};
 
-        // 3. Kỷ luật nộp bài (Tỷ lệ đúng hạn của sinh viên)
         const disciplineRes = await request.query(`
             SELECT 
                 COUNT(*) AS TotalSubmitted,
@@ -197,7 +180,6 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
         const totalSub = discData.TotalSubmitted || 0;
         const onTimeRate = totalSub > 0 ? (((discData.OnTimeCount || 0) / totalSub) * 100).toFixed(1) : '100.0';
 
-        // 4. Thống kê bài Quiz đã hoàn thành
         const quizRes = await request.query(`
             SELECT 
                 COUNT(*) AS CompletedQuizzes,
@@ -227,9 +209,6 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
     }
 });
 
-// =========================================================================
-// API 3: DANH SÁCH DEADLINE BÀI TẬP (ĐÃ FIX DRAFT + CHẤM ĐIỂM + MÔN HỌC)
-// =========================================================================
 app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
     try {
         const { userKey } = req.user;
@@ -267,8 +246,6 @@ app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
             let statusColor = 'danger';
             let timeRemainingText = '';
             const mins = item.MinutesRemaining;
-
-            // Xử lý trạng thái chuẩn xác
             if (item.SubmissionStatus === 'submitted') {
                 statusTag = item.IsLate ? 'Đã nộp (Trễ)' : 'Đã nộp (Đúng hạn)';
                 statusColor = item.IsLate ? 'warning' : 'success';
@@ -308,9 +285,6 @@ app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
     }
 });
 
-// =========================================================================
-// API 4: BẢNG ĐIỂM CHI TIẾT TỪNG MÔN SINH VIÊN THEO HỌC
-// =========================================================================
 app.get('/api/student/courses', authenticateToken, async (req, res) => {
     try {
         const { userKey } = req.user;
@@ -380,9 +354,6 @@ app.get('/api/student/courses', authenticateToken, async (req, res) => {
     }
 });
 
-// =========================================================================
-// API 5: TRẠNG THÁI QUIZ (CHỈ LẤY CÁC QUIZ THUỘC MÔN SINH VIÊN CÓ HỌC)
-// =========================================================================
 app.get('/api/student/quizzes', authenticateToken, async (req, res) => {
     try {
         const { userKey } = req.user;
@@ -417,9 +388,6 @@ app.get('/api/student/quizzes', authenticateToken, async (req, res) => {
     }
 });
 
-// =========================================================================
-// API 6: NGÂN HÀNG CÂU HỎI TRẮC NGHIỆM SAI (GÓC ÔN TẬP CHO SINH VIÊN)
-// =========================================================================
 app.get('/api/student/wrong-questions', authenticateToken, async (req, res) => {
     try {
         const { userKey } = req.user;
@@ -471,12 +439,10 @@ app.get('/api/student/wrong-questions', authenticateToken, async (req, res) => {
     }
 });
 
-// Phục vụ giao diện Frontend
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-// Khởi chạy server
 app.listen(PORT, () => {
     console.log(`[🚀] Cổng Sinh viên DLU đang chạy tại: http://localhost:${PORT}`);
 });
