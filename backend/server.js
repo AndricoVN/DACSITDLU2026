@@ -106,11 +106,6 @@ app.post('/api/auth/login', async (req, res) => {
             console.error('Bcrypt error:', e.message);
         }
 
-        // Fallback test
-        if (!isMatch && (password === user.PasswordHash || password === '123456' || password === 'dlu@2026')) {
-            isMatch = true;
-        }
-
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Mật khẩu không chính xác.' });
         }
