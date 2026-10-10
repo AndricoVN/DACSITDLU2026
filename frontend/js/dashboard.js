@@ -60,14 +60,7 @@ function liveMins(item) {
 
 function formatRemaining(mins) {
     if (mins === null) return { text: 'Không giới hạn', tone: 'success' };
-    if (mins < 0) {
-        const over = Math.abs(mins);
-        const d = Math.floor(over / 1440);
-        const h = Math.floor((over % 1440) / 60);
-        const m = Math.floor(over % 60);
-        const txt = d > 0 ? `${d} ngày` : h > 0 ? `${h} giờ` : `${m} phút`;
-        return { text: `Quá hạn ${txt}`, tone: 'danger' };
-    }
+    if (mins < 0) return { text: 'Quá hạn', tone: 'danger' };
     const d = Math.floor(mins / 1440);
     const h = Math.floor((mins % 1440) / 60);
     const m = Math.floor(mins % 60);
@@ -170,7 +163,7 @@ async function handleLogin() {
         errorBox.textContent = 'Không thể kết nối tới server. Vui lòng thử lại sau.';
         errorBox.classList.remove('hidden');
     } finally {
-        btnLogin.innerHTML = `<span>Đăng nhập</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>`;
+        btnLogin.innerHTML = '<span>Đăng nhập</span>';
         btnLogin.disabled = false;
     }
 }
@@ -219,8 +212,8 @@ function renderSkeletonAll() {
     if (tl) tl.innerHTML = '';
 }
 
-function emptyStateHTML(icon, title, desc) {
-    return `<tr><td colspan="99"><div class="empty-state"><i class="fa-solid ${icon}"></i><h4>${title}</h4><p>${desc}</p></div></td></tr>`;
+function emptyStateHTML(title, desc) {
+    return `<tr><td colspan="99"><div class="empty-state"><h4>${title}</h4><p>${desc}</p></div></td></tr>`;
 }
 
 function updateLastUpdated() {
@@ -264,36 +257,33 @@ async function fetchSummary() {
 }
 
 function renderSummary(d) {
-    // GPA (backend trả string hoặc number — chuẩn hóa về number)
-    const g10 = parseFloat(d.gpa10) || 0;
-    $('valGpa10').textContent = g10.toFixed(2);
-    $('valGpa4').textContent = (parseFloat(d.gpa4) || 0).toFixed(2);
+    const g10 = d.gpa10 === null || d.gpa10 === undefined ? null : Number(d.gpa10);
+    $('valGpa10').textContent = g10 === null ? '--' : g10.toFixed(2);
 
     const badgeGpa = $('badgeGpaClass');
     badgeGpa.textContent = d.gpaClassification;
-    if (g10 >= 8.5) badgeGpa.className = 'badge badge-success';
-    else if (g10 >= 7.0) badgeGpa.className = 'badge badge-info';
-    else if (g10 >= 5.0) badgeGpa.className = 'badge badge-warning';
-    else badgeGpa.className = 'badge badge-danger';
+    if (d.gpaClassification === 'Xuất sắc') badgeGpa.className = 'badge badge-success';
+    else if (d.gpaClassification === 'Khá') badgeGpa.className = 'badge badge-info';
+    else if (d.gpaClassification === 'Trung bình' || d.gpaClassification === 'Trung bình yếu') badgeGpa.className = 'badge badge-warning';
+    else if (d.gpaClassification === 'Kém (rớt môn)') badgeGpa.className = 'badge badge-danger';
+    else badgeGpa.className = 'badge badge-info';
 
     $('valUrgentDeadlines').textContent = d.urgentDeadlines;
     const subUrgent = $('subUrgentText');
-    const alertBanner = $('urgentAlertBox');
     if (d.urgentDeadlines > 0 || d.overdueCount > 0) {
-        subUrgent.innerHTML = `<span class="tone-danger"><i class="fa-solid fa-triangle-exclamation"></i> Có ${d.urgentDeadlines} bài gấp & ${d.overdueCount} bài trễ!</span>`;
-        alertBanner.classList.remove('hidden');
-        $('urgentAlertDesc').textContent = `Bạn đang có ${d.urgentDeadlines} bài tập sắp hết hạn (< 48h) và ${d.overdueCount} bài chưa nộp đã quá hạn.`;
+        subUrgent.innerHTML = `<span class="tone-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${d.urgentDeadlines} bài trong 48h · ${d.overdueCount} bài quá hạn.</span>`;
     } else {
-        subUrgent.innerHTML = `<i class="fa-solid fa-circle-check tone-success"></i> Không có bài tập gấp trong 48h tới.`;
-        alertBanner.classList.add('hidden');
+        subUrgent.innerHTML = `<i class="fa-solid fa-circle-check tone-success"></i> Không có bài tập đến hạn trong 48h tới.`;
     }
 
-    $('valOnTimeRate').textContent = `${d.onTimeRate}%`;
-    setRing('ringOnTime', parseFloat(d.onTimeRate) || 0);
+    const onTimeRate = d.onTimeRate === null || d.onTimeRate === undefined ? null : Number(d.onTimeRate);
+    $('valOnTimeRate').textContent = onTimeRate === null ? '--' : `${onTimeRate}%`;
+    setRing('ringOnTime', onTimeRate ?? 0);
 
-    $('valAvgQuizScore').textContent = `${d.avgQuizScore} / 10`;
+    const avgQuizScore = d.avgQuizScore === null || d.avgQuizScore === undefined ? null : Number(d.avgQuizScore);
+    $('valAvgQuizScore').textContent = avgQuizScore === null ? '-- / 10' : `${avgQuizScore.toFixed(2)} / 10`;
     $('valQuizCount').textContent = `${d.completedQuizzes} bài hoàn thành`;
-    setRing('ringQuiz', (parseFloat(d.avgQuizScore) || 0) * 10);
+    setRing('ringQuiz', (avgQuizScore ?? 0) * 10);
 }
 
 async function fetchDeadlines() {
@@ -321,17 +311,17 @@ function renderTimeline() {
     const pending = state.deadlines.filter(i => i.SubmissionStatus !== 'submitted');
     const m = (i) => liveMins(i);
     const cnt = (fn) => pending.filter(i => m(i) !== null && fn(m(i))).length;
-    const noLimit = pending.filter(i => m(i) === null).length;
     const chips = [
-        { icon: 'fa-triangle-exclamation', label: 'Quá hạn', n: cnt(v => v < 0), cls: 'tl-danger' },
-        { icon: 'fa-stopwatch', label: 'Trong 24h', n: cnt(v => v >= 0 && v <= 1440), cls: 'tl-warning' },
-        { icon: 'fa-hourglass-half', label: '24–48h', n: cnt(v => v > 1440 && v <= 2880), cls: 'tl-warning' },
-        { icon: 'fa-calendar-week', label: 'Tuần này', n: cnt(v => v > 2880 && v <= 10080), cls: 'tl-info' },
-        { icon: 'fa-calendar-days', label: 'Sau 7 ngày', n: cnt(v => v > 10080) + noLimit, cls: 'tl-muted' },
-        { icon: 'fa-circle-check', label: 'Đã nộp', n: state.deadlines.length - pending.length, cls: 'tl-success' }
+        { label: 'Quá hạn', n: cnt(v => v < 0), cls: 'tl-danger' },
+        { label: 'Trong 24h', n: cnt(v => v >= 0 && v <= 1440), cls: 'tl-warning' },
+        { label: '24–48h', n: cnt(v => v > 1440 && v <= 2880), cls: 'tl-warning' },
+        { label: 'Tuần này', n: cnt(v => v > 2880 && v <= 10080), cls: 'tl-info' },
+        { label: 'Sau 7 ngày', n: cnt(v => v > 10080), cls: 'tl-muted' },
+        { label: 'Không hạn', n: pending.filter(i => m(i) === null).length, cls: 'tl-muted' },
+        { label: 'Đã nộp', n: state.deadlines.length - pending.length, cls: 'tl-success' }
     ];
     $('timelineStrip').innerHTML = chips.map(c =>
-        `<span class="tl-chip ${c.cls} ${c.n === 0 ? 'is-zero' : ''}"><i class="fa-solid ${c.icon}"></i> ${c.label}: <strong>${c.n}</strong></span>`
+        `<span class="tl-chip ${c.cls} ${c.n === 0 ? 'is-zero' : ''}">${c.label}: <strong>${c.n}</strong></span>`
     ).join('');
 }
 
@@ -360,7 +350,7 @@ async function fetchWrongQuestions() {
         const res = await ApiService.getWrongQuestions('all');
         if (!res.success) return false;
         state.wrongQuestions = res.data || [];
-        populateCourseSelect($('reviewCourse'), state.wrongQuestions.map(q => q.CourseName), state.review.course);
+        renderReviewCourseFilters();
         renderWrongQuestions();
         return true;
     } catch (e) { console.error('Lỗi wrong-questions:', e); return false; }
@@ -409,7 +399,7 @@ function filterAssignments() {
     const f = state.assign;
     return state.deadlines.filter(item => {
         const cat = assignCategory(item);
-        if (f.status === 'pending' && cat === 'submitted') return false;
+        if (f.status === 'pending' && (cat === 'submitted' || cat === 'overdue')) return false;
         if (f.status === 'urgent' && cat !== 'urgent') return false;
         if (f.status === 'overdue' && cat !== 'overdue') return false;
         if (f.status === 'submitted' && cat !== 'submitted') return false;
@@ -443,14 +433,12 @@ function renderAssignments() {
     tabCount.classList.toggle('alert', need > 0);
 
     if (total === 0) {
-        tbody.innerHTML = emptyStateHTML('fa-mug-hot', 'Không có bài tập nào', 'Tuyệt vời! Bạn không còn bài tập nào trong các môn đang học.');
+        tbody.innerHTML = emptyStateHTML('Không có bài tập nào', 'Tuyệt vời! Bạn không còn bài tập nào trong các môn đang học.');
         $('assignResultCount').textContent = '';
         return;
     }
     if (list.length === 0) {
-        const f = state.assign;
         tbody.innerHTML = emptyStateHTML(
-            f.status === 'submitted' ? 'fa-box-archive' : 'fa-filter',
             'Không có kết quả phù hợp',
             'Thử đổi bộ lọc, chọn "Tất cả" hoặc xóa từ khóa tìm kiếm.'
         );
@@ -466,6 +454,8 @@ function renderAssignments() {
         let remainCell;
         if (item.DueDate == null) {
             remainCell = '<span class="text-muted-sm">Không giới hạn</span>';
+        } else if (cat === 'overdue') {
+            remainCell = '<span class="countdown-text tone-danger">Quá hạn</span>';
         } else {
             const r = formatRemaining(mins);
             remainCell = `<div class="countdown-wrap"><span class="countdown-text tone-${r.tone}">${r.text}</span><div class="mini-progress"><span class="tone-${r.tone}" style="width:${deadlinePct(mins)}%"></span></div></div>`;
@@ -473,14 +463,16 @@ function renderAssignments() {
 
         let badge;
         if (cat === 'submitted') badge = item.IsLate ? '<span class="badge badge-warning">Đã nộp (Trễ)</span>' : '<span class="badge badge-success">Đã nộp đúng hạn</span>';
-        else if (cat === 'overdue') badge = '<span class="badge badge-danger">Quá hạn nộp</span>';
+        else if (cat === 'overdue') badge = item.SubmissionStatus === 'draft' ? '<span class="badge badge-warning">Nháp — chưa gửi</span>' : '<span class="badge badge-info">Chưa nộp</span>';
         else if (cat === 'urgent') badge = '<span class="badge badge-danger">Sắp hết hạn</span>';
         else badge = item.SubmissionStatus === 'draft' ? '<span class="badge badge-warning">Nháp — chưa gửi</span>' : '<span class="badge badge-info">Chưa nộp</span>';
 
         let grade = '<span class="text-muted-sm">--</span>';
-        if (item.GradeScaled10 !== null && item.GradeScaled10 !== undefined && item.GradeScaled10 > 0) {
+        if (cat === 'overdue') {
+            grade = '<span class="text-muted-sm">Không có điểm</span>';
+        } else if (item.Grade !== null && item.Grade !== undefined) {
             grade = `<span class="score-strong ${item.GradeScaled10 >= 5 ? 'score-pass' : 'score-fail'}">${item.GradeScaled10.toFixed(2)}đ</span>`;
-        } else if (item.SubmissionStatus === 'submitted' || item.SubmissionStatus === 'draft') {
+        } else if (item.SubmissionStatus === 'submitted') {
             grade = '<span class="text-muted-sm">Chờ chấm</span>';
         }
 
@@ -536,12 +528,12 @@ function renderQuizzes() {
     tabCount.classList.toggle('alert', need > 0);
 
     if (total === 0) {
-        tbody.innerHTML = emptyStateHTML('fa-stopwatch-20', 'Không có bài kiểm tra', 'Chưa có quiz nào trong các môn bạn đang học.');
+        tbody.innerHTML = emptyStateHTML('Không có bài kiểm tra', 'Chưa có quiz nào trong các môn bạn đang học.');
         $('quizResultCount').textContent = '';
         return;
     }
     if (list.length === 0) {
-        tbody.innerHTML = emptyStateHTML('fa-filter', 'Không có kết quả phù hợp', 'Thử chọn "Tất cả" hoặc xóa từ khóa tìm kiếm.');
+        tbody.innerHTML = emptyStateHTML('Không có kết quả phù hợp', 'Thử chọn "Tất cả" hoặc xóa từ khóa tìm kiếm.');
         $('quizResultCount').textContent = `0 / ${total}`;
         return;
     }
@@ -590,33 +582,38 @@ function filterWrongQuestions() {
     });
 }
 
-function renderWrongQuestions() {
-    const wrap = $('reviewList');
+function renderReviewCourseFilters() {
+    const wrap = $('reviewCourseFilters');
     if (!wrap) return;
-    const list = filterWrongQuestions();
-    const total = state.wrongQuestions.length;
+    const filterPanel = $('reviewCourseFilter');
 
-    const tabCount = $('tabReviewCount');
-    if (tabCount) tabCount.textContent = total;
+    const counts = new Map();
+    state.wrongQuestions.forEach(q => counts.set(q.CourseName, (counts.get(q.CourseName) || 0) + 1));
+    const courses = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'vi'));
+    if (state.review.course !== 'all' && !counts.has(state.review.course)) state.review.course = 'all';
+    if (filterPanel) filterPanel.classList.toggle('hidden', courses.length === 0);
 
-    if (total === 0) {
-        wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-champagne-glasses"></i><h4>Chưa có câu nào sai</h4><p>Bạn chưa trả lời sai câu trắc nghiệm nào — tiếp tục phát huy nhé!</p></div>`;
-        return;
-    }
-    if (list.length === 0) {
-        wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter"></i><h4>Không có kết quả phù hợp</h4><p>Thử đổi môn học hoặc xóa từ khóa tìm kiếm.</p></div>`;
-        return;
-    }
+    const options = [
+        ['all', 'Tất cả môn', state.wrongQuestions.length],
+        ...courses.map(course => [course, course, counts.get(course)])
+    ];
+    wrap.innerHTML = options.map(([value, label, count]) => `
+        <button type="button" class="pill ${state.review.course === value ? 'active' : ''}"
+            data-review-course="${escapeHtml(value)}" aria-pressed="${state.review.course === value}">
+            ${escapeHtml(label)} <span class="review-course-count">${count}</span>
+        </button>
+    `).join('');
+}
 
-    // Chỉ xem: hiển thị câu hỏi, đáp án sinh viên đã chọn (sai) và đáp án đúng — không có thao tác làm lại.
-    wrap.innerHTML = list.map((q, idx) => {
-        const scorePct = (q.MaxMark && q.MaxMark > 0) ? Math.round(((q.EarnedMark || 0) / q.MaxMark) * 100) : (q.Fraction != null ? Math.round(q.Fraction * 100) : null);
-        return `
+function wrongQuestionCardHTML(q, idx) {
+    const scorePct = (q.MaxMark && q.MaxMark > 0)
+        ? Math.round(((q.EarnedMark || 0) / q.MaxMark) * 100)
+        : (q.Fraction != null ? Math.round(q.Fraction * 100) : null);
+    return `
         <div class="review-item" data-idx="${idx}">
             <button type="button" class="review-item-head">
                 <div class="review-item-main">
-                    <span class="course-name">${escapeHtml(q.CourseName)}</span>
-                    <span class="review-quiz-name"><i class="fa-solid fa-stopwatch-20"></i> ${escapeHtml(q.QuizName)}</span>
+                    <span class="review-quiz-name">${escapeHtml(q.QuizName)}</span>
                 </div>
                 <div class="review-item-meta">
                     ${scorePct !== null ? `<span class="badge badge-danger">${scorePct}%</span>` : '<span class="badge badge-danger">Sai</span>'}
@@ -635,7 +632,43 @@ function renderWrongQuestions() {
                 </div>
             </div>
         </div>`;
-    }).join('');
+}
+
+function renderWrongQuestions() {
+    const wrap = $('reviewList');
+    if (!wrap) return;
+    const list = filterWrongQuestions();
+    const total = state.wrongQuestions.length;
+
+    const tabCount = $('tabReviewCount');
+    if (tabCount) tabCount.textContent = total;
+
+    if (total === 0) {
+        wrap.innerHTML = `<div class="empty-state"><h4>Chưa có câu nào sai</h4><p>Bạn chưa trả lời sai câu trắc nghiệm nào — tiếp tục phát huy nhé!</p></div>`;
+        return;
+    }
+    if (list.length === 0) {
+        wrap.innerHTML = `<div class="empty-state"><h4>Không có kết quả phù hợp</h4><p>Thử đổi môn học hoặc xóa từ khóa tìm kiếm.</p></div>`;
+        return;
+    }
+
+    const groups = new Map();
+    list.forEach(q => {
+        if (!groups.has(q.CourseName)) groups.set(q.CourseName, []);
+        groups.get(q.CourseName).push(q);
+    });
+    const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'vi'));
+    wrap.innerHTML = sortedGroups.map(([course, questions]) => `
+        <section class="review-course-group">
+            <header class="review-course-heading">
+                <h4>${escapeHtml(course)}</h4>
+                <span>${questions.length} câu sai</span>
+            </header>
+            <div class="review-course-items">
+                ${questions.map((q, idx) => wrongQuestionCardHTML(q, idx)).join('')}
+            </div>
+        </section>
+    `).join('');
 
     wrap.querySelectorAll('.review-item-head').forEach(btn => {
         btn.addEventListener('click', () => btn.closest('.review-item').classList.toggle('open'));
@@ -657,7 +690,7 @@ function renderCourses(data) {
     if (!tbody) return;
 
     if (!data.length) {
-        tbody.innerHTML = emptyStateHTML('fa-graduation-cap', 'Chưa có dữ liệu bảng điểm', 'Dữ liệu sẽ xuất hiện sau khi ETL đồng bộ từ Moodle.');
+        tbody.innerHTML = emptyStateHTML('Chưa có dữ liệu bảng điểm', 'Dữ liệu sẽ xuất hiện sau khi ETL đồng bộ từ Moodle.');
         renderChart();
         return;
     }
@@ -675,7 +708,11 @@ function renderCourses(data) {
 
     tbody.innerHTML = list.map(c => {
         const grade10 = (c.FinalGrade10 !== null && c.FinalGrade10 !== undefined) ? c.FinalGrade10.toFixed(2) : '--';
-        const isDanger = c.FinalGrade10 !== null && c.FinalGrade10 < 5.0;
+        const gradeClass = c.FinalGrade10 === null || c.FinalGrade10 === undefined
+            ? 'text-muted-sm'
+            : c.FinalGrade10 < 4.0 ? 'grade-fail' : c.FinalGrade10 < 5.0 ? 'grade-warning' : 'grade-pass';
+        const quizAverage = c.QuizAverage === null || c.QuizAverage === undefined ? '--' : Number(c.QuizAverage).toFixed(2);
+        const assignAverage = c.AssignAverage === null || c.AssignAverage === undefined ? '--' : Number(c.AssignAverage).toFixed(2);
 
         let letterBadge = 'badge-success';
         if (c.LetterGrade === 'F') letterBadge = 'badge-danger';
@@ -684,9 +721,9 @@ function renderCourses(data) {
         return `<tr>
             <td><div class="assign-name">${escapeHtml(c.CourseName)}</div></td>
             <td>${progressCell(c)}</td>
-            <td>${(c.QuizAverage ?? 0).toFixed(2)}</td>
-            <td>${(c.AssignAverage ?? 0).toFixed(2)}</td>
-            <td><strong class="${isDanger ? 'grade-fail' : 'grade-pass'}">${grade10}</strong></td>
+            <td>${quizAverage}</td>
+            <td>${assignAverage}</td>
+            <td><strong class="${gradeClass}">${grade10}</strong></td>
             <td><span class="badge ${letterBadge}">${escapeHtml(c.LetterGrade)}</span><div class="classify-small">${escapeHtml(c.GradeClassification)}</div></td>
         </tr>`;
     }).join('');
@@ -732,15 +769,14 @@ function updateScoreYearOptions() {
     if (!yearSelect || !state.courses.length) return;
 
     const yearsInData = state.courses.map(c => Number(c.Year)).filter(n => !isNaN(n) && n > 0);
-    const maxYear = yearsInData.length ? Math.max(...yearsInData) : new Date().getFullYear();
-    const currentYear = maxYear || 2026;
+    const currentYear = new Date().getFullYear();
     const prevYear = currentYear - 1;
 
     const btnCurrent = document.querySelector('#scoreYearToggle button[data-year="current"]');
-    if (btnCurrent) btnCurrent.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Năm nay (${currentYear})`;
+    if (btnCurrent) btnCurrent.textContent = `Năm nay (${currentYear})`;
 
     const btnPrevious = document.querySelector('#scoreYearToggle button[data-year="previous"]');
-    if (btnPrevious) btnPrevious.innerHTML = `<i class="fa-solid fa-calendar-minus"></i> Năm trước (${prevYear})`;
+    if (btnPrevious) btnPrevious.textContent = `Năm trước (${prevYear})`;
 
     const availableYears = [...new Set(yearsInData)].sort((a, b) => b - a);
     const existingValues = Array.from(yearSelect.options).map(o => o.value);
@@ -772,9 +808,7 @@ function renderScoreDistributionChart() {
         return;
     }
 
-    const yearsInData = state.courses.map(c => Number(c.Year)).filter(n => !isNaN(n) && n > 0);
-    const maxYear = yearsInData.length ? Math.max(...yearsInData) : new Date().getFullYear();
-    const currentYear = maxYear || 2026;
+    const currentYear = new Date().getFullYear();
     const prevYear = currentYear - 1;
     const filter = state.scoreYearFilter;
 
@@ -804,16 +838,16 @@ function renderScoreDistributionChart() {
         }
     }
 
-    const scoreLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-    const counts = new Array(10).fill(0);
-    const coursesInScore = Array.from({ length: 10 }, () => []);
+    const scoreLabels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+    const counts = new Array(11).fill(0);
+    const coursesInScore = Array.from({ length: 11 }, () => []);
 
     filteredCourses.forEach(c => {
         if (c.FinalGrade10 !== null && c.FinalGrade10 !== undefined) {
             const val = parseFloat(c.FinalGrade10);
-            const bucket = Math.min(10, Math.max(1, Math.round(val)));
-            counts[bucket - 1]++;
-            coursesInScore[bucket - 1].push({
+            const bucket = Math.min(10, Math.max(0, Math.round(val)));
+            counts[bucket]++;
+            coursesInScore[bucket].push({
                 name: c.CourseName,
                 score: val.toFixed(2),
                 letter: c.LetterGrade || '--',
@@ -826,6 +860,7 @@ function renderScoreDistributionChart() {
         'rgba(239, 68, 68, 0.85)',
         'rgba(239, 68, 68, 0.85)',
         'rgba(239, 68, 68, 0.85)',
+        'rgba(239, 68, 68, 0.85)',
         'rgba(249, 115, 22, 0.85)',
         'rgba(234, 179, 8, 0.85)',
         'rgba(234, 179, 8, 0.85)',
@@ -835,6 +870,7 @@ function renderScoreDistributionChart() {
         'rgba(168, 85, 247, 0.85)'
     ];
     const borderColors = [
+        '#ef4444',
         '#ef4444', '#ef4444', '#ef4444',
         '#f97316',
         '#eab308', '#eab308',
@@ -910,7 +946,7 @@ function renderScoreDistributionChart() {
                     grid: { color: th.grid },
                     title: {
                         display: true,
-                        text: 'Số môn đạt điểm',
+                        text: 'Số môn học',
                         color: th.text,
                         font: { size: 10, family: 'Inter' }
                     }
@@ -921,34 +957,29 @@ function renderScoreDistributionChart() {
 
     const summaryEl = $('scoreDistSummary');
     if (summaryEl) {
-        const total = filteredCourses.length;
         const validGrades = filteredCourses.filter(c => c.FinalGrade10 !== null && c.FinalGrade10 !== undefined);
         const avg = validGrades.length ? (validGrades.reduce((acc, c) => acc + c.FinalGrade10, 0) / validGrades.length).toFixed(2) : '--';
         const passed = validGrades.filter(c => c.FinalGrade10 >= 4.0).length;
         const failed = validGrades.filter(c => c.FinalGrade10 < 4.0).length;
 
-        if (total === 0) {
+        if (filteredCourses.length === 0) {
             summaryEl.innerHTML = `
                 <div style="width: 100%; text-align: center; color: var(--text-secondary); padding: 8px 0;">
-                    <i class="fa-solid fa-circle-info"></i> Không tìm thấy môn học nào thuộc <strong>${escapeHtml(currentFilterLabel)}</strong>.
+                    Không tìm thấy môn học nào thuộc <strong>${escapeHtml(currentFilterLabel)}</strong>.
                 </div>
             `;
         } else {
             summaryEl.innerHTML = `
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <i class="fa-solid fa-book-bookmark text-cyan"></i>
-                    <span>Tổng môn: <strong style="color:var(--text-primary); font-weight:700;">${total}</strong></span>
+                    <span>Môn có điểm: <strong style="color:var(--text-primary); font-weight:700;">${validGrades.length}</strong></span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <i class="fa-solid fa-calculator text-purple"></i>
                     <span>Điểm TB (${escapeHtml(currentFilterLabel)}): <strong style="color:var(--text-primary); font-weight:700;">${avg}</strong></span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <i class="fa-solid fa-circle-check tone-success"></i>
                     <span>Đạt (≥ 4.0): <strong class="tone-success" style="font-weight:700;">${passed}</strong></span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <i class="fa-solid fa-triangle-exclamation tone-danger"></i>
                     <span>Cần cải thiện (< 4.0): <strong class="tone-danger" style="font-weight:700;">${failed}</strong></span>
                 </div>
             `;
@@ -1003,7 +1034,13 @@ function bindEvents() {
     $('assignSort').addEventListener('change', (e) => { state.assign.sort = e.target.value; renderAssignments(); });
     $('quizCourse').addEventListener('change', (e) => { state.quiz.course = e.target.value; renderQuizzes(); });
     $('quizSort').addEventListener('change', (e) => { state.quiz.sort = e.target.value; renderQuizzes(); });
-    $('reviewCourse').addEventListener('change', (e) => { state.review.course = e.target.value; renderWrongQuestions(); });
+    $('reviewCourseFilters').addEventListener('click', (e) => {
+        const button = e.target.closest('button[data-review-course]');
+        if (!button) return;
+        state.review.course = button.dataset.reviewCourse;
+        renderReviewCourseFilters();
+        renderWrongQuestions();
+    });
 
     document.querySelectorAll('#scoreYearToggle button').forEach(btn => {
         btn.addEventListener('click', () => {

@@ -466,11 +466,11 @@ def sync_fact_assign_submissions(m_conn, s_conn, user_map, assign_map, course_ma
         is_late = 1 if (r['DueDate'] and r['DueDate'] > 0 and r['SubmissionTime'] and r['SubmissionTime'] > r['DueDate']) else 0
         days_late = (r['SubmissionTime'] - r['DueDate']) // 86400 + 1 if is_late else 0
         status = r['Status'] if r['Status'] else 'missing'
-        raw_grade = float(r['Grade'] or 0.0) if r['Grade'] is not None else 0.0
+        raw_grade = float(r['Grade']) if r['Grade'] is not None else None
         max_grade = float(r['MaxGrade'] or 10.0)
 
-        scaled_10 = round((raw_grade / max_grade) * 10.0, 2) if max_grade > 0 else 0.0
-        is_passed = 1 if scaled_10 >= 5.0 else 0
+        scaled_10 = round((raw_grade / max_grade) * 10.0, 2) if raw_grade is not None and max_grade > 0 else 0.0
+        is_passed = 1 if raw_grade is not None and scaled_10 >= 5.0 else 0
 
         insert_batch.append((
             r['SourceSubmissionID'], user_key, assign_key, course_key, date_key,

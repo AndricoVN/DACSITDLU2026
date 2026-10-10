@@ -146,20 +146,25 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
             WHERE UserKey = @userKey;
         `);
         const gpaData = gpaRes.recordset[0] || {};
-        const gpa10 = gpaData.GPA10 ? parseFloat(gpaData.GPA10).toFixed(2) : '0.00';
-        const gpa4 = (parseFloat(gpa10) * 0.4).toFixed(2);
+        const gpaValue = gpaData.GPA10 === null || gpaData.GPA10 === undefined
+            ? null
+            : parseFloat(gpaData.GPA10);
+        const gpa10 = gpaValue === null ? null : gpaValue.toFixed(2);
         
         let gpaClassification = 'Chưa có xếp loại';
-        if (parseFloat(gpa10) >= 8.5) gpaClassification = 'Xuất sắc';
-        else if (parseFloat(gpa10) >= 7.0) gpaClassification = 'Khá';
-        else if (parseFloat(gpa10) >= 5.0) gpaClassification = 'Trung bình';
-        else if (parseFloat(gpa10) > 0) gpaClassification = 'Cảnh báo học vụ';
+        if (gpaValue !== null) {
+            if (gpaValue >= 8.5) gpaClassification = 'Xuất sắc';
+            else if (gpaValue >= 7.0) gpaClassification = 'Khá';
+            else if (gpaValue >= 5.5) gpaClassification = 'Trung bình';
+            else if (gpaValue >= 4.0) gpaClassification = 'Trung bình yếu';
+            else gpaClassification = 'Kém (rớt môn)';
+        }
 
         const deadlineRes = await request.query(`
             SELECT 
                 COUNT(*) AS TotalPending,
-                SUM(CASE WHEN da.DueDate >= GETDATE() AND DATEDIFF(hour, GETDATE(), da.DueDate) <= 48 THEN 1 ELSE 0 END) AS UrgentDeadlines,
-                SUM(CASE WHEN (fas.SubmissionStatus = 'missing' OR fas.SubmissionStatus IS NULL) AND da.DueDate < GETDATE() THEN 1 ELSE 0 END) AS OverdueCount
+                SUM(CASE WHEN da.DueDate >= GETDATE() AND da.DueDate <= DATEADD(hour, 48, GETDATE()) THEN 1 ELSE 0 END) AS UrgentDeadlines,
+                SUM(CASE WHEN da.DueDate < GETDATE() THEN 1 ELSE 0 END) AS OverdueCount
             FROM Dim_Assign da
             JOIN Dim_Course dc ON da.CourseKey = dc.CourseKey
             INNER JOIN Fact_Course_Grades fcg ON (fcg.CourseKey = dc.CourseKey AND fcg.UserKey = @userKey)
@@ -170,38 +175,50 @@ app.get('/api/student/summary', authenticateToken, async (req, res) => {
 
         const disciplineRes = await request.query(`
             SELECT 
-                COUNT(*) AS TotalSubmitted,
-                SUM(CASE WHEN IsLate = 0 THEN 1 ELSE 0 END) AS OnTimeCount,
-                SUM(CASE WHEN IsLate = 1 THEN 1 ELSE 0 END) AS LateCount
+                SUM(CASE WHEN DueDate IS NOT NULL THEN 1 ELSE 0 END) AS TotalSubmitted,
+                SUM(CASE WHEN DueDate IS NOT NULL AND IsLate = 0 THEN 1 ELSE 0 END) AS OnTimeCount,
+                SUM(CASE WHEN DueDate IS NOT NULL AND IsLate = 1 THEN 1 ELSE 0 END) AS LateCount
             FROM Fact_Assign_Submissions
             WHERE UserKey = @userKey AND SubmissionStatus = 'submitted';
         `);
         const discData = disciplineRes.recordset[0] || {};
         const totalSub = discData.TotalSubmitted || 0;
-        const onTimeRate = totalSub > 0 ? (((discData.OnTimeCount || 0) / totalSub) * 100).toFixed(1) : '100.0';
+        const onTimeRate = totalSub > 0 ? (((discData.OnTimeCount || 0) / totalSub) * 100).toFixed(1) : null;
 
         const quizRes = await request.query(`
+            WITH RankedFinished AS (
+                SELECT
+                    ScoreScaled10,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY QuizKey
+                        ORDER BY AttemptNumber DESC, TimeFinish DESC, SourceAttemptID DESC
+                    ) AS AttemptRank
+                FROM Fact_Quiz_Attempts
+                WHERE UserKey = @userKey AND State = 'finished'
+            )
             SELECT 
                 COUNT(*) AS CompletedQuizzes,
                 AVG(ScoreScaled10) AS AvgQuizScore
-            FROM Fact_Quiz_Attempts
-            WHERE UserKey = @userKey AND State = 'finished';
+            FROM RankedFinished
+            WHERE AttemptRank = 1;
         `);
         const qData = quizRes.recordset[0] || {};
 
         res.json({
             success: true,
             data: {
-                gpa10: parseFloat(gpa10),
-                gpa4: parseFloat(gpa4),
+                gpa10: gpa10 === null ? null : parseFloat(gpa10),
+                gpa4: null,
                 gpaClassification,
                 enrolledCourses: gpaData.EnrolledCourses || 0,
                 atRiskCourses: gpaData.AtRiskCourses || 0,
                 urgentDeadlines: dlData.UrgentDeadlines || 0,
                 overdueCount: dlData.OverdueCount || 0,
-                onTimeRate: parseFloat(onTimeRate),
+                onTimeRate: onTimeRate === null ? null : parseFloat(onTimeRate),
                 completedQuizzes: qData.CompletedQuizzes || 0,
-                avgQuizScore: qData.AvgQuizScore ? parseFloat(qData.AvgQuizScore).toFixed(2) : '0.00'
+                avgQuizScore: qData.AvgQuizScore === null || qData.AvgQuizScore === undefined
+                    ? null
+                    : parseFloat(qData.AvgQuizScore).toFixed(2)
             }
         });
     } catch (err) {
@@ -224,9 +241,13 @@ app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
                 da.DueDate,
                 fas.SubmissionStatus,
                 fas.SubmissionTime,
+                fas.Grade,
                 fas.GradeScaled10,
                 fas.IsLate,
-                DATEDIFF(minute, GETDATE(), da.DueDate) AS MinutesRemaining
+                CASE
+                    WHEN da.DueDate < GETDATE() THEN -1.0
+                    ELSE DATEDIFF(second, GETDATE(), da.DueDate) / 60.0
+                END AS MinutesRemaining
             FROM Dim_Assign da
             JOIN Dim_Course dc ON da.CourseKey = dc.CourseKey
             INNER JOIN Fact_Course_Grades fcg ON (fcg.CourseKey = dc.CourseKey AND fcg.UserKey = @userKey)
@@ -242,23 +263,20 @@ app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
         const result = await request.query(query);
 
         const formatted = result.recordset.map(item => {
-            let statusTag = 'Chưa nộp';
-            let statusColor = 'danger';
+            let statusTag = item.SubmissionStatus === 'draft' ? 'Bản nháp (Chưa gửi)' : 'Chưa nộp';
+            let statusColor = item.SubmissionStatus === 'draft' ? 'warning' : 'info';
             let timeRemainingText = '';
             const mins = item.MinutesRemaining;
             if (item.SubmissionStatus === 'submitted') {
                 statusTag = item.IsLate ? 'Đã nộp (Trễ)' : 'Đã nộp (Đúng hạn)';
                 statusColor = item.IsLate ? 'warning' : 'success';
                 timeRemainingText = 'Hoàn thành';
-            } else if (item.SubmissionStatus === 'draft') {
-                statusTag = 'Bản nháp (Chưa gửi)';
-                statusColor = 'warning';
-                timeRemainingText = mins < 0 ? 'Quá hạn (Còn nháp)' : `Còn ${Math.floor(mins / (60 * 24))} ngày`;
+            } else if (mins === null) {
+                timeRemainingText = 'Không giới hạn';
             } else if (mins < 0) {
-                statusTag = 'Quá hạn nộp';
+                statusTag = 'Quá hạn';
                 statusColor = 'danger';
-                const daysOverdue = Math.abs(Math.floor(mins / (60 * 24)));
-                timeRemainingText = `Quá hạn ${daysOverdue > 0 ? daysOverdue + ' ngày' : 'vài giờ'}`;
+                timeRemainingText = 'Quá hạn';
             } else if (mins <= 24 * 60) {
                 statusTag = 'Hết hạn hôm nay';
                 statusColor = 'danger';
@@ -266,8 +284,6 @@ app.get('/api/student/deadlines', authenticateToken, async (req, res) => {
                 timeRemainingText = `Còn ${hours}h ${mins % 60}p`;
             } else {
                 const days = Math.floor(mins / (60 * 24));
-                statusTag = 'Chưa nộp bài';
-                statusColor = 'info';
                 timeRemainingText = `Còn ${days} ngày nữa`;
             }
 
@@ -292,6 +308,19 @@ app.get('/api/student/courses', authenticateToken, async (req, res) => {
         const request = pool.request().input('userKey', sql.Int, userKey);
 
         const query = `
+            WITH LatestFinishedQuiz AS (
+                SELECT
+                    UserKey,
+                    CourseKey,
+                    QuizKey,
+                    ScoreScaled10,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY UserKey, QuizKey
+                        ORDER BY AttemptNumber DESC, TimeFinish DESC, SourceAttemptID DESC
+                    ) AS AttemptRank
+                FROM Fact_Quiz_Attempts
+                WHERE UserKey = @userKey AND State = 'finished'
+            )
             SELECT 
                 dc.CourseKey,
                 dc.CourseName,
@@ -302,8 +331,8 @@ app.get('/api/student/courses', authenticateToken, async (req, res) => {
                 fcg.GradeClassification,
                 fcg.IsPassed,
                 COALESCE(dd.Year, YEAR(GETDATE())) AS Year,
-                COALESCE(quiz_stat.AvgQuiz, 0.0) AS QuizAverage,
-                COALESCE(sub_stat.AssignAverage, 0.0) AS AssignAverage,
+                quiz_stat.AvgQuiz AS QuizAverage,
+                sub_stat.AssignAverage AS AssignAverage,
                 COALESCE(sub_stat.PendingAssigns, 0) AS PendingAssigns,
                 COALESCE(assign_cnt.TotalAssigns, 0) AS TotalAssigns,
                 COALESCE(assign_cnt.SubmittedAssigns, 0) AS SubmittedAssigns,
@@ -313,13 +342,13 @@ app.get('/api/student/courses', authenticateToken, async (req, res) => {
             JOIN Dim_Course dc ON fcg.CourseKey = dc.CourseKey
             LEFT JOIN Dim_Date dd ON fcg.DateKey = dd.DateKey
             OUTER APPLY (
-                SELECT AVG(fqa.ScoreScaled10) AS AvgQuiz
-                FROM Fact_Quiz_Attempts fqa
-                WHERE fqa.UserKey = @userKey AND fqa.CourseKey = dc.CourseKey
+                SELECT AVG(q.ScoreScaled10) AS AvgQuiz
+                FROM LatestFinishedQuiz q
+                WHERE q.UserKey = @userKey AND q.CourseKey = dc.CourseKey AND q.AttemptRank = 1
             ) quiz_stat
             OUTER APPLY (
                 SELECT 
-                    AVG(fas.GradeScaled10) AS AssignAverage,
+                    AVG(CASE WHEN fas.SubmissionStatus = 'submitted' AND fas.Grade IS NOT NULL THEN fas.GradeScaled10 END) AS AssignAverage,
                     SUM(CASE WHEN fas.SubmissionStatus <> 'submitted' OR fas.SubmissionStatus IS NULL THEN 1 ELSE 0 END) AS PendingAssigns
                 FROM Fact_Assign_Submissions fas
                 WHERE fas.UserKey = @userKey AND fas.CourseKey = dc.CourseKey
@@ -370,15 +399,25 @@ app.get('/api/student/quizzes', authenticateToken, async (req, res) => {
                 dq.TimeClose,
                 dq.TimeLimitMinutes,
                 CASE WHEN dq.TimeClose IS NOT NULL AND dq.TimeClose < GETDATE() THEN 1 ELSE 0 END AS IsClosed,
-                fqa.State,
-                fqa.AttemptNumber,
-                fqa.ScoreScaled10,
-                fqa.DurationSeconds,
-                fqa.TimeFinish
+                latest.State,
+                latest.AttemptNumber,
+                latest.ScoreScaled10,
+                latest.DurationSeconds,
+                latest.TimeFinish
             FROM Dim_Quiz dq
             JOIN Dim_Course dc ON dq.CourseKey = dc.CourseKey
             INNER JOIN Fact_Course_Grades fcg ON (fcg.CourseKey = dc.CourseKey AND fcg.UserKey = @userKey)
-            LEFT JOIN Fact_Quiz_Attempts fqa ON (dq.QuizKey = fqa.QuizKey AND fqa.UserKey = @userKey)
+            OUTER APPLY (
+                SELECT TOP 1
+                    fqa.State,
+                    fqa.AttemptNumber,
+                    fqa.ScoreScaled10,
+                    fqa.DurationSeconds,
+                    fqa.TimeFinish
+                FROM Fact_Quiz_Attempts fqa
+                WHERE dq.QuizKey = fqa.QuizKey AND fqa.UserKey = @userKey
+                ORDER BY fqa.AttemptNumber DESC, fqa.SourceAttemptID DESC
+            ) latest
             ORDER BY dq.TimeClose ASC;
         `;
         const result = await request.query(query);
