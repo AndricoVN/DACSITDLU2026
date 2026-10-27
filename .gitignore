@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
