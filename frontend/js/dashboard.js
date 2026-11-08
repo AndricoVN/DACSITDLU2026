@@ -269,6 +269,7 @@ function renderSummary(d) {
     else badgeGpa.className = 'badge badge-info';
 
     $('valUrgentDeadlines').textContent = d.urgentDeadlines;
+    $('badgeUrgent').classList.toggle('hidden', !(d.urgentDeadlines > 0));
     const subUrgent = $('subUrgentText');
     if (d.urgentDeadlines > 0 || d.overdueCount > 0) {
         subUrgent.innerHTML = `<span class="tone-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${d.urgentDeadlines} bài trong 48h · ${d.overdueCount} bài quá hạn.</span>`;
@@ -358,7 +359,10 @@ async function fetchWrongQuestions() {
 
 function switchTab(tab) {
     state.activeTab = tab;
-    document.querySelectorAll('#actionCenter .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('#actionCenter .tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+        t.setAttribute('aria-selected', String(t.dataset.tab === tab));
+    });
     $('panel-assignments').classList.toggle('active', tab === 'assignments');
     $('panel-quizzes').classList.toggle('active', tab === 'quizzes');
     $('panel-review').classList.toggle('active', tab === 'review');
@@ -755,12 +759,18 @@ function progressCell(c) {
 
 function chartThemeColors() {
     const cs = getComputedStyle(document.body);
-    const light = document.body.classList.contains('light');
+    const token = (name) => cs.getPropertyValue(name).trim();
     return {
-        text: (cs.getPropertyValue('--text-secondary') || '#94a3b8').trim(),
-        grid: light ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.05)',
-        tooltipBg: light ? '#ffffff' : '#1e293b',
-        tooltipText: light ? '#0f172a' : '#f8fafc'
+        text: token('--text-secondary'),
+        grid: token('--chart-grid'),
+        tooltipBg: token('--toast-bg'),
+        tooltipText: token('--text-primary'),
+        danger: token('--color-danger'),
+        orange: token('--color-orange'),
+        amber: token('--color-amber'),
+        success: token('--color-success'),
+        cyan: token('--color-cyan'),
+        purple: token('--color-purple')
     };
 }
 
@@ -856,30 +866,13 @@ function renderScoreDistributionChart() {
         }
     });
 
-    const barColors = [
-        'rgba(239, 68, 68, 0.85)',
-        'rgba(239, 68, 68, 0.85)',
-        'rgba(239, 68, 68, 0.85)',
-        'rgba(239, 68, 68, 0.85)',
-        'rgba(249, 115, 22, 0.85)',
-        'rgba(234, 179, 8, 0.85)',
-        'rgba(234, 179, 8, 0.85)',
-        'rgba(16, 185, 129, 0.85)',
-        'rgba(16, 185, 129, 0.85)',
-        'rgba(6, 182, 212, 0.85)',
-        'rgba(168, 85, 247, 0.85)'
-    ];
-    const borderColors = [
-        '#ef4444',
-        '#ef4444', '#ef4444', '#ef4444',
-        '#f97316',
-        '#eab308', '#eab308',
-        '#10b981', '#10b981',
-        '#06b6d4',
-        '#a855f7'
-    ];
-
     const th = chartThemeColors();
+    const barColors = [
+        th.danger, th.danger, th.danger, th.danger,
+        th.orange, th.amber, th.amber,
+        th.success, th.success, th.cyan, th.purple
+    ];
+    const borderColors = barColors;
     if (scoreDistChartInstance) {
         scoreDistChartInstance.destroy();
         scoreDistChartInstance = null;
@@ -1071,7 +1064,16 @@ function bindEvents() {
     $('kpiOnTime').addEventListener('click', () => goToFilteredTab('assignments', 'all'));
     $('kpiQuiz').addEventListener('click', () => goToFilteredTab('quizzes', 'all'));
 
-    $('btnViewUrgent').addEventListener('click', () => goToFilteredTab('assignments', 'pending'));
+    $('btnViewUrgent')?.addEventListener('click', () => goToFilteredTab('assignments', 'pending'));
+
+    document.querySelectorAll('.kpi-clickable').forEach(card => {
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                card.click();
+            }
+        });
+    });
 
     document.querySelectorAll('#transcriptSection .th-sortable').forEach(th => {
         th.addEventListener('click', () => {

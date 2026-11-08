@@ -21,15 +21,15 @@
                 <p>Xây dựng DWH và ứng dụng quản lý cho sinh viên</p>
             </div>
             <form id="loginForm" class="login-form">
-                <div id="loginError" class="alert-box alert-danger hidden"></div>
+                <div id="loginError" class="alert-box alert-danger hidden" role="alert" aria-live="assertive"></div>
                 <div class="form-group">
                     <label for="txtUsername">Tên đăng nhập:</label>
-                    <input type="text" id="txtUsername" class="custom-input" placeholder="VD: user001" required>
+                    <input type="text" id="txtUsername" class="custom-input" placeholder="VD: user001" autocomplete="username" aria-describedby="loginError" required>
                 </div>
 
                 <div class="form-group">
                     <label for="txtPassword">Mật khẩu Moodle:</label>
-                    <input type="password" id="txtPassword" class="custom-input" placeholder="••••••••" required>
+                    <input type="password" id="txtPassword" class="custom-input" placeholder="••••••••" autocomplete="current-password" aria-describedby="loginError" required>
                 </div>
 
                 <button type="submit" id="btnLogin" class="btn-primary btn-block">
@@ -57,12 +57,12 @@
                 <div class="avatar-circle" id="userAvatar">SV</div>
                 <div class="user-meta">
                     <h3 id="txtFullName">Đang tải...</h3>
-                    <p><span id="txtIdNumber">MSSV: --</span> • <strong id="txtCohort" class="text-cyan">Lớp: --</strong></p>
+                    <p><span id="txtIdNumber">MSSV: --</span> <span class="user-meta-separator" aria-hidden="true">•</span> <strong id="txtCohort" class="text-cyan">Lớp: --</strong></p>
                 </div>
-                <button id="btnTheme" class="btn-icon-header" title="Đổi giao diện sáng/tối">
+                <button id="btnTheme" class="btn-icon-header" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">
                     <i id="themeIcon" class="fa-solid fa-moon"></i>
                 </button>
-                <button id="btnLogout" class="btn-logout" title="Đăng xuất">
+                <button id="btnLogout" class="btn-logout" title="Đăng xuất" aria-label="Đăng xuất">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
@@ -71,7 +71,7 @@
         <main class="dashboard-body">
             
             <section class="kpi-grid">
-                <div class="glass-card kpi-card kpi-clickable" id="kpiGpa" title="Xem bảng điểm chi tiết">
+                <div class="glass-card kpi-card kpi-clickable" id="kpiGpa" title="Xem bảng điểm chi tiết" role="button" tabindex="0" aria-label="Xem bảng điểm chi tiết">
                     <div class="card-header-mini">
                         <span class="kpi-title">GPA Tích lũy (Hệ 10)</span>
                         <div class="kpi-icon icon-success">
@@ -87,7 +87,7 @@
                     <p class="kpi-subtitle">Điểm tổng kết trung bình các môn</p>
                 </div>
 
-                <div class="glass-card kpi-card kpi-clickable" id="kpiUrgent" title="Xem danh sách cần nộp gấp">
+                <div class="glass-card kpi-card kpi-clickable" id="kpiUrgent" title="Xem danh sách cần nộp gấp" role="button" tabindex="0" aria-label="Xem danh sách cần nộp gấp">
                     <div class="card-header-mini">
                         <span class="kpi-title">Hạn nộp Khẩn cấp (≤ 48h)</span>
                         <div class="kpi-icon icon-danger">
@@ -96,12 +96,12 @@
                     </div>
                     <div class="kpi-main">
                         <h2 id="valUrgentDeadlines">0</h2>
-                        <span class="badge badge-danger" id="badgeUrgent">Cần nộp gấp</span>
+                        <span class="badge badge-danger hidden" id="badgeUrgent">Cần nộp gấp</span>
                     </div>
                     <p class="kpi-subtitle" id="subUrgentText">Không có bài tập sắp đến hạn</p>
                 </div>
 
-                <div class="glass-card kpi-card kpi-clickable" id="kpiOnTime" title="Xem toàn bộ bài tập">
+                <div class="glass-card kpi-card kpi-clickable" id="kpiOnTime" title="Xem toàn bộ bài tập" role="button" tabindex="0" aria-label="Xem toàn bộ bài tập">
                     <div class="card-header-mini">
                         <span class="kpi-title">Kỷ luật Nộp bài tập</span>
                         <div class="kpi-icon icon-cyan">
@@ -121,7 +121,7 @@
                     <p class="kpi-subtitle">Tỷ lệ bài nộp trước Deadline</p>
                 </div>
 
-                <div class="glass-card kpi-card kpi-clickable" id="kpiQuiz" title="Xem danh sách Quiz">
+                <div class="glass-card kpi-card kpi-clickable" id="kpiQuiz" title="Xem danh sách Quiz" role="button" tabindex="0" aria-label="Xem danh sách Quiz">
                     <div class="card-header-mini">
                         <span class="kpi-title">Điểm Quiz Trắc nghiệm TB</span>
                         <div class="kpi-icon icon-purple">
@@ -159,25 +159,25 @@
                 <div class="timeline-strip" id="timelineStrip"></div>
 
                 <div class="tabs" role="tablist">
-                    <button class="tab active" data-tab="assignments" role="tab">
+                    <button class="tab active" data-tab="assignments" role="tab" aria-controls="panel-assignments" aria-selected="true">
                         Bài tập & Hạn nộp
                         <span class="tab-count" id="tabAssignCount">0</span>
                     </button>
-                    <button class="tab" data-tab="quizzes" role="tab">
+                    <button class="tab" data-tab="quizzes" role="tab" aria-controls="panel-quizzes" aria-selected="false">
                         Quiz & Kiểm tra
                         <span class="tab-count" id="tabQuizCount">0</span>
                     </button>
-                    <button class="tab" data-tab="review" role="tab">
+                    <button class="tab" data-tab="review" role="tab" aria-controls="panel-review" aria-selected="false">
                         Ôn tập câu sai
                         <span class="tab-count" id="tabReviewCount">0</span>
                     </button>
                 </div>
 
-                <div class="tab-panel active" id="panel-assignments">
+                <div class="tab-panel active" id="panel-assignments" role="tabpanel" aria-label="Bài tập & Hạn nộp">
                     <div class="toolbar">
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="assignSearch" placeholder="Tìm bài tập hoặc môn học... (nhấn /)" autocomplete="off">
+                            <input type="text" id="assignSearch" aria-label="Tìm bài tập hoặc môn học" placeholder="Tìm bài tập hoặc môn học... (nhấn /)" autocomplete="off">
                         </div>
                         <select id="assignCourse" class="custom-select" title="Lọc theo môn học">
                             <option value="all">Tất cả môn học</option>
@@ -214,11 +214,11 @@
                     </div>
                 </div>
 
-                <div class="tab-panel" id="panel-quizzes">
+                <div class="tab-panel" id="panel-quizzes" role="tabpanel" aria-label="Quiz & Kiểm tra">
                     <div class="toolbar">
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="quizSearch" placeholder="Tìm bài kiểm tra hoặc môn học..." autocomplete="off">
+                            <input type="text" id="quizSearch" aria-label="Tìm bài kiểm tra hoặc môn học" placeholder="Tìm bài kiểm tra hoặc môn học..." autocomplete="off">
                         </div>
                         <select id="quizCourse" class="custom-select" title="Lọc theo môn học">
                             <option value="all">Tất cả môn học</option>
@@ -254,11 +254,11 @@
                     </div>
                 </div>
 
-                <div class="tab-panel" id="panel-review">
+                <div class="tab-panel" id="panel-review" role="tabpanel" aria-label="Ôn tập câu sai">
                     <div class="toolbar">
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="reviewSearch" placeholder="Tìm câu hỏi, bài kiểm tra hoặc môn học..." autocomplete="off">
+                            <input type="text" id="reviewSearch" aria-label="Tìm câu hỏi, bài kiểm tra hoặc môn học" placeholder="Tìm câu hỏi, bài kiểm tra hoặc môn học..." autocomplete="off">
                         </div>
                     </div>
                     <div class="review-course-filter" id="reviewCourseFilter">
@@ -305,21 +305,21 @@
                                 <p class="section-desc">Phân bố số lượng học phần theo các mức điểm tổng kết</p>
                             </div>
                         </div>
-                        <div class="chart-actions-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <div class="chart-actions-group">
                             <div class="chart-toggle" id="scoreYearToggle">
                                 <button class="active" data-year="all">Tất cả</button>
                                 <button data-year="current">Năm nay</button>
                                 <button data-year="previous">Năm trước</button>
                             </div>
-                            <select id="scoreYearSelect" class="form-select-sm" title="Chọn năm học cụ thể" style="background: rgba(255,255,255,0.06); color: var(--text-primary); border: 1px solid var(--border-glass); border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; outline: none;">
+                            <select id="scoreYearSelect" class="form-select-sm" title="Chọn năm học cụ thể">
                                 <option value="all">Tất cả các năm</option>
                             </select>
                         </div>
                     </div>
-                    <div class="chart-container" style="position: relative; height: 320px;">
+                    <div class="chart-container">
                         <canvas id="scoreDistributionChart"></canvas>
                     </div>
-                    <div id="scoreDistSummary" class="score-dist-summary" style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-glass); font-size: 0.85rem;">
+                    <div id="scoreDistSummary" class="score-dist-summary">
                         <!-- Rendered by JS -->
                     </div>
                 </section>
@@ -334,7 +334,7 @@
         </footer>
     </div>
 
-    <div id="toastContainer" class="toast-container"></div>
+    <div id="toastContainer" class="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
 
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>

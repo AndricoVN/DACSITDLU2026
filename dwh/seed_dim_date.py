@@ -1,6 +1,6 @@
 """
 seed_dim_date.py
-Sinh dữ liệu bảng Dim_Date từ 2024 đến 2030 vào SQL Server Data Warehouse
+Sinh dữ liệu bảng Dim_Date từ 2000 đến 2030 vào SQL Server Data Warehouse
 """
 import datetime
 import pyodbc
@@ -18,7 +18,7 @@ def get_day_name_vi(weekday_idx: int) -> str:
     names = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
     return names[weekday_idx]
 
-def seed_dates(start_year: int = 2024, end_year: int = 2030):
+def seed_dates(start_year: int = 2000, end_year: int = 2030):
     start_date = datetime.date(start_year, 1, 1)
     end_date = datetime.date(end_year, 12, 31)
     delta = datetime.timedelta(days=1)
