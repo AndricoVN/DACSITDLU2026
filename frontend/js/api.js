@@ -69,29 +69,5 @@ const ApiService = {
             headers: this.getAuthHeaders()
         });
         return await response.json();
-    },
-
-    async getEtlCostReport() {
-        const response = await fetch(`${API_BASE_URL}/etl/cost-report`, {
-            headers: this.getAuthHeaders()
-        });
-        return await response.json();
-    },
-
-    async getMultiTableDemo(userKey = null) {
-        const qs = userKey ? `?userKey=${encodeURIComponent(userKey)}` : '';
-        const response = await fetch(`${API_BASE_URL}/etl/multi-table-demo${qs}`, {
-            headers: this.getAuthHeaders()
-        });
-        return await response.json();
-    },
-
-    async runLiveSyncDemo(payload) {
-        const response = await fetch(`${API_BASE_URL}/etl/live-sync-demo`, {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(payload)
-        });
-        return await response.json();
     }
 };
