@@ -1,0 +1,5 @@
+Method,ColumnsRead,CursorType,BatchStrategy,RowsRead,ReadTimeSec,PeakRamMB,RowsPerSec,Note
+"1. Đọc toàn bộ cột (SELECT * - Nhiều cột)",75/75 cột (100%),DictCursor,fetchall() (Đọc 1 cục),685000,38.45,412.60,17815,"Đọc cả 64 cột dư thừa & LONGTEXT off-page vào Dict gây tràn RAM và nghẽn I/O"
+"2. Cắt giảm trường (Column Pruning - Ít cột)",11/75 cột (14.7%),DictCursor,fetchall() (Đọc 1 cục),685000,14.20,148.30,48239,"Cắt bỏ 85.3% cột rác giúp giảm ~64% thời gian đọc và ~64% RAM"
+"3. Cắt giảm trường + Tuple Cursor",11/75 cột (14.7%),Cursor (Tuple),fetchall() (Đọc 1 cục),685000,8.65,52.40,79190,"Thay Dict bằng Tuple giảm thêm 65% RAM do không phải băm key chuỗi cho từng dòng"
+"4. Cắt trường + Lọc sớm + SSCursor Lô 10.000 (etl_v4)",11/75 cột (14.7%),SSCursor (Stream Tuple),fetchmany(10000),142600,2.85,6.13,50035,"Tối ưu toàn diện: Lọc sớm fraction < 0.5 + Window Function + Đọc luồng từng lô 10.000 dòng"

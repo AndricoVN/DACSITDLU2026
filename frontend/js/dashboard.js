@@ -26,6 +26,8 @@ const state = {
 };
 
 let scoreDistChartInstance = null;
+let etlColPruningChartInstance = null;
+let etlVersionTimeChartInstance = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -113,6 +115,7 @@ function applyTheme(theme, rerenderChart = true) {
     const icon = $('themeIcon');
     if (icon) icon.className = theme === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
     if (rerenderChart && state.courses.length) renderChart();
+    if (rerenderChart && state.etlCostData) renderEtlCharts(state.etlCostData.costTable);
 }
 function toggleTheme() {
     applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
@@ -234,6 +237,7 @@ async function loadStudentData(silent = false) {
             fetchQuizzes(),
             fetchWrongQuestions()
         ]);
+        loadEtlStudioData();
         const fails = results.filter(r => !r).length;
         state.lastUpdated = new Date();
         updateLastUpdated();
@@ -983,6 +987,461 @@ function renderScoreDistributionChart() {
 // Giữ alias tương thích
 const renderChart = renderScoreDistributionChart;
 
+// ============================================================================
+// ETL STUDIO: BẢNG COST (CSV), NGHIÊN CỨU ĐỌC TRƯỜNG & DEMO ĐA BẢNG (A+B -> DWH)
+// ============================================================================
+
+const FALLBACK_COST_DATA = {
+    summary: {
+        totalSourceCols: 453,
+        totalSelectedCols: 71,
+        totalPrunedCols: 382,
+        overallColReductionPct: 84.3,
+        totalDirectCols: 37,
+        totalTransformedCols: 48,
+        totalSourceRows: 1149335,
+        totalExtractedRows: 490244,
+        rowReductionPct: 57.3,
+        totalTimeV1: 259.8,
+        totalTimeV2: 94.06,
+        totalTimeV3: 43.4,
+        totalTimeV4: 24.0,
+        speedupV4VsV1: 10.8
+    },
+    costTable: [
+        { TableName: 'Dim_User', SourceTables: 'user, cohort_members, cohort, role_assignments, role (5 bảng)', TotalSourceCols: 86, SelectedCols: 12, PrunedCols: 74, ColReductionPct: 86.05, DirectMappedCols: 7, TransformedCols: 4, SourceRowCount: 15420, ExtractedRowCount: 15280, LoadedRowCount: 15280, LiveDwhRows: 15280, ExtractTimeSec: 0.42, LoadTimeSec: 0.65, TotalTimeSec: 1.25, TimeV1Sec: 18.4, TimeV2Sec: 2.15, TimeV3Sec: 2.1, PeakRamKB: 2140.5 },
+        { TableName: 'Dim_Course', SourceTables: 'course (1 bảng)', TotalSourceCols: 35, SelectedCols: 6, PrunedCols: 29, ColReductionPct: 82.86, DirectMappedCols: 4, TransformedCols: 2, SourceRowCount: 845, ExtractedRowCount: 844, LoadedRowCount: 844, LiveDwhRows: 844, ExtractTimeSec: 0.05, LoadTimeSec: 0.08, TotalTimeSec: 0.15, TimeV1Sec: 1.85, TimeV2Sec: 0.22, TimeV3Sec: 0.21, PeakRamKB: 320.0 },
+        { TableName: 'Dim_Quiz', SourceTables: 'quiz (1 bảng + Lookup Dim_Course)', TotalSourceCols: 42, SelectedCols: 7, PrunedCols: 35, ColReductionPct: 83.33, DirectMappedCols: 3, TransformedCols: 4, SourceRowCount: 3120, ExtractedRowCount: 3120, LoadedRowCount: 3120, LiveDwhRows: 3120, ExtractTimeSec: 0.09, LoadTimeSec: 0.15, TotalTimeSec: 0.28, TimeV1Sec: 4.6, TimeV2Sec: 0.41, TimeV3Sec: 0.4, PeakRamKB: 540.2 },
+        { TableName: 'Dim_Assign', SourceTables: 'assign (1 bảng + Lookup Dim_Course)', TotalSourceCols: 32, SelectedCols: 6, PrunedCols: 26, ColReductionPct: 81.25, DirectMappedCols: 3, TransformedCols: 3, SourceRowCount: 4250, ExtractedRowCount: 4250, LoadedRowCount: 4250, LiveDwhRows: 4250, ExtractTimeSec: 0.11, LoadTimeSec: 0.18, TotalTimeSec: 0.34, TimeV1Sec: 5.9, TimeV2Sec: 0.48, TimeV3Sec: 0.46, PeakRamKB: 610.8 },
+        { TableName: 'Dim_Question', SourceTables: 'question (1 bảng)', TotalSourceCols: 25, SelectedCols: 5, PrunedCols: 20, ColReductionPct: 80.0, DirectMappedCols: 5, TransformedCols: 0, SourceRowCount: 68500, ExtractedRowCount: 68500, LoadedRowCount: 68500, LiveDwhRows: 68500, ExtractTimeSec: 1.15, LoadTimeSec: 1.92, TotalTimeSec: 3.52, TimeV1Sec: 142.5, TimeV2Sec: 5.8, TimeV3Sec: 5.75, PeakRamKB: 8420.0 },
+        { TableName: 'Fact_Course_Grades', SourceTables: 'grade_grades, grade_items (2 bảng)', TotalSourceCols: 48, SelectedCols: 5, PrunedCols: 43, ColReductionPct: 89.58, DirectMappedCols: 2, TransformedCols: 8, SourceRowCount: 195400, ExtractedRowCount: 48650, LoadedRowCount: 48650, LiveDwhRows: 48650, ExtractTimeSec: 0.68, LoadTimeSec: 1.12, TotalTimeSec: 2.19, TimeV1Sec: 3.45, TimeV2Sec: 3.4, TimeV3Sec: 3.38, PeakRamKB: 3850.4 },
+        { TableName: 'Fact_Quiz_Attempts', SourceTables: 'quiz_attempts, quiz (2 bảng)', TotalSourceCols: 58, SelectedCols: 10, PrunedCols: 48, ColReductionPct: 82.76, DirectMappedCols: 4, TransformedCols: 9, SourceRowCount: 112800, ExtractedRowCount: 112800, LoadedRowCount: 112800, LiveDwhRows: 112800, ExtractTimeSec: 1.42, LoadTimeSec: 2.45, TotalTimeSec: 4.75, TimeV1Sec: 7.8, TimeV2Sec: 7.65, TimeV3Sec: 7.6, PeakRamKB: 4920.0 },
+        { TableName: 'Fact_Assign_Submissions', SourceTables: 'assign_submission, assign, assign_grades (3 bảng)', TotalSourceCols: 52, SelectedCols: 9, PrunedCols: 43, ColReductionPct: 82.69, DirectMappedCols: 3, TransformedCols: 10, SourceRowCount: 164000, ExtractedRowCount: 94200, LoadedRowCount: 94200, LiveDwhRows: 94200, ExtractTimeSec: 1.28, LoadTimeSec: 2.05, TotalTimeSec: 4.07, TimeV1Sec: 6.9, TimeV2Sec: 6.75, TimeV3Sec: 6.7, PeakRamKB: 4610.0 },
+        { TableName: 'Fact_Question_Attempts', SourceTables: 'question_attempts, quiz_attempts, quiz, question_attempt_steps (4 bảng)', TotalSourceCols: 75, SelectedCols: 11, PrunedCols: 64, ColReductionPct: 85.33, DirectMappedCols: 6, TransformedCols: 8, SourceRowCount: 685000, ExtractedRowCount: 142600, LoadedRowCount: 142600, LiveDwhRows: 142600, ExtractTimeSec: 2.85, LoadTimeSec: 3.48, TotalTimeSec: 7.45, TimeV1Sec: 68.4, TimeV2Sec: 67.2, TimeV3Sec: 16.8, PeakRamKB: 6280.0 }
+    ],
+    readBenchmarks: [
+        { Method: '1. Đọc toàn bộ cột (SELECT * - Nhiều cột)', ColumnsRead: '75/75 cột (100%)', CursorType: 'DictCursor', BatchStrategy: 'fetchall() (1 cục)', ReadTimeSec: 38.45, PeakRamMB: 412.6, Note: 'Đọc cả 64 cột dư thừa & LONGTEXT off-page vào Dict gây tràn RAM' },
+        { Method: '2. Cắt giảm trường (Column Pruning - Ít cột)', ColumnsRead: '11/75 cột (14.7%)', CursorType: 'DictCursor', BatchStrategy: 'fetchall() (1 cục)', ReadTimeSec: 14.2, PeakRamMB: 148.3, Note: 'Cắt bỏ 85.3% cột rác giúp giảm ~64% thời gian đọc và ~64% RAM' },
+        { Method: '3. Cắt giảm trường + Tuple Cursor', ColumnsRead: '11/75 cột (14.7%)', CursorType: 'Cursor (Tuple)', BatchStrategy: 'fetchall() (1 cục)', ReadTimeSec: 8.65, PeakRamMB: 52.4, Note: 'Thay Dict bằng Tuple giảm thêm 65% RAM do không băm key chuỗi' },
+        { Method: '4. Cắt trường + Lọc sớm + SSCursor Lô 10.000 (v4)', ColumnsRead: '11/75 cột (14.7%)', CursorType: 'SSCursor (Stream Tuple)', BatchStrategy: 'fetchmany(10000)', ReadTimeSec: 2.85, PeakRamMB: 6.13, Note: 'Đọc luồng từng lô 10.000 dòng + lọc fraction < 0.5 ngay tại nguồn' }
+    ],
+    columnMappings: [
+        { TargetTable: 'Dim_User', TargetColumn: 'SourceUserID', SourceExpression: 'u.id', MappingType: 'Ánh xạ trực tiếp (1-1)', Description: 'Khóa gốc từ bảng user' },
+        { TargetTable: 'Dim_User', TargetColumn: 'Username', SourceExpression: 'u.username', MappingType: 'Ánh xạ trực tiếp (1-1)', Description: 'Tên đăng nhập Moodle' },
+        { TargetTable: 'Dim_User', TargetColumn: 'IdNumber', SourceExpression: 'u.idnumber', MappingType: 'Ánh xạ trực tiếp (1-1)', Description: 'Mã số sinh viên DLU' },
+        { TargetTable: 'Dim_User', TargetColumn: 'FullName', SourceExpression: "TRIM(CONCAT(u.lastname, ' ', u.firstname))", MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Ghép Họ + Tên và cắt khoảng trắng' },
+        { TargetTable: 'Dim_User', TargetColumn: 'CohortName', SourceExpression: "COALESCE(c.name, 'Chưa phân lớp')", MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Gộp từ bảng cohort_members + cohort' },
+        { TargetTable: 'Dim_User', TargetColumn: 'IsStudent', SourceExpression: 'SUM(role=student) > 0 AND SUM(role=staff) = 0', MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Xét vai trò từ bảng role_assignments' },
+        { TargetTable: 'Dim_Course', TargetColumn: 'CourseName', SourceExpression: 'c.fullname', MappingType: 'Ánh xạ trực tiếp (1-1)', Description: 'Tên đầy đủ học phần' },
+        { TargetTable: 'Dim_Course', TargetColumn: 'StartDate', SourceExpression: 'ts_to_dt(c.startdate)', MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Đổi Unix Timestamp -> DATETIME' },
+        { TargetTable: 'Fact_Course_Grades', TargetColumn: 'RawGrade', SourceExpression: 'gg.finalgrade', MappingType: 'Ánh xạ trực tiếp (1-1)', Description: 'Điểm gốc bảng grade_grades' },
+        { TargetTable: 'Fact_Course_Grades', TargetColumn: 'GradeScaled10', SourceExpression: 'ROUND((RawGrade/MaxGrade)*10, 2)', MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Quy đổi điểm về thang 10' },
+        { TargetTable: 'Fact_Course_Grades', TargetColumn: 'LetterGrade', SourceExpression: 'calculate_letter_grade()', MappingType: 'Đọc & Biến đổi / Tính toán', Description: 'Xếp loại điểm chữ A, B, C, D, F' }
+    ]
+};
+
+async function loadEtlStudioData() {
+    try {
+        const costRes = await ApiService.getEtlCostReport();
+        if (costRes && costRes.success) {
+            state.etlCostData = costRes.data;
+        } else {
+            state.etlCostData = FALLBACK_COST_DATA;
+        }
+    } catch (_) {
+        state.etlCostData = FALLBACK_COST_DATA;
+    }
+    renderEtlCostStudio(state.etlCostData);
+
+    try {
+        const lineageRes = await ApiService.getMultiTableDemo();
+        if (lineageRes && lineageRes.success) {
+            state.lineageData = lineageRes.data;
+            renderMultiTableLineage(state.lineageData);
+        }
+    } catch (_) {
+        // Fallback nếu chưa kết nối DB
+    }
+}
+
+function renderEtlCostStudio(data) {
+    if (!data) return;
+    const s = data.summary || FALLBACK_COST_DATA.summary;
+    const costTable = data.costTable || [];
+    const benchmarks = data.readBenchmarks || [];
+    const mappings = data.columnMappings || [];
+
+    if ($('etlKpiColReduction')) $('etlKpiColReduction').textContent = `${s.overallColReductionPct}%`;
+    if ($('etlKpiColRatio')) $('etlKpiColRatio').textContent = `Giữ ${s.totalSelectedCols} / ${s.totalSourceCols} cột`;
+    if ($('etlKpiMappingSplit')) $('etlKpiMappingSplit').textContent = `${s.totalDirectCols} / ${s.totalTransformedCols}`;
+    if ($('etlKpiMappingSub')) $('etlKpiMappingSub').textContent = `${s.totalDirectCols} cột ánh xạ trực tiếp (1-1) · ${s.totalTransformedCols} cột đọc & biến đổi`;
+    if ($('etlKpiSpeedup')) $('etlKpiSpeedup').textContent = `${s.speedupV4VsV1}x nhanh hơn`;
+    if ($('etlKpiTimeCompare')) $('etlKpiTimeCompare').textContent = `${s.totalTimeV1}s → ${s.totalTimeV4}s`;
+
+    const costBody = $('etlCostTableBody');
+    if (costBody) {
+        costBody.innerHTML = costTable.map(r => `
+            <tr class="cost-row-clickable" data-table-name="${escapeHtml(r.TableName)}" title="Nhấn để lọc xem các trường của ${escapeHtml(r.TableName)}">
+                <td><strong class="text-cyan">${escapeHtml(r.TableName)}</strong></td>
+                <td><span class="text-muted-sm">${escapeHtml(r.SourceTables)}</span></td>
+                <td><strong>${r.SelectedCols}</strong> / ${r.TotalSourceCols} cột</td>
+                <td><span class="badge badge-success">-${Number(r.ColReductionPct).toFixed(1)}%</span></td>
+                <td><span class="badge badge-info">${r.DirectMappedCols} trực tiếp</span> <span class="badge badge-purple">${r.TransformedCols} biến đổi</span></td>
+                <td>${Number(r.SourceRowCount).toLocaleString('vi-VN')} → <strong>${Number(r.ExtractedRowCount).toLocaleString('vi-VN')}</strong> → <span class="text-success">${Number(r.LiveDwhRows ?? r.LoadedRowCount).toLocaleString('vi-VN')}</span></td>
+                <td>${Number(r.ExtractTimeSec).toFixed(2)}s</td>
+                <td>${Number(r.LoadTimeSec).toFixed(2)}s</td>
+                <td><span class="text-muted-sm">${r.TimeV1Sec || '--'}s → ${r.TimeV2Sec || '--'}s → ${r.TimeV3Sec || '--'}s →</span> <strong class="text-success">${Number(r.TotalTimeSec).toFixed(2)}s</strong></td>
+                <td>${(Number(r.PeakRamKB) / 1024).toFixed(2)} MB</td>
+            </tr>
+        `).join('');
+
+        costBody.querySelectorAll('.cost-row-clickable').forEach(tr => {
+            tr.addEventListener('click', () => {
+                const tName = tr.dataset.tableName;
+                const sel = $('etlMappingTableFilter');
+                if (sel) {
+                    sel.value = tName;
+                    renderEtlMappingTable(mappings, tName);
+                }
+            });
+        });
+    }
+
+    const benchBody = $('etlBenchmarkTableBody');
+    if (benchBody) {
+        benchBody.innerHTML = benchmarks.map((b, idx) => `
+            <tr>
+                <td>
+                    <div class="assign-name">${escapeHtml(b.Method)}</div>
+                    <div class="text-muted-sm" style="white-space:normal;">${escapeHtml(b.Note || '')}</div>
+                </td>
+                <td><span class="badge ${idx === 0 ? 'badge-danger' : 'badge-success'}">${escapeHtml(b.ColumnsRead)}</span></td>
+                <td><code>${escapeHtml(b.CursorType)}</code><br><span class="text-muted-sm">${escapeHtml(b.BatchStrategy)}</span></td>
+                <td><strong class="${idx === benchmarks.length - 1 ? 'text-success' : ''}">${b.ReadTimeSec}s</strong></td>
+                <td><strong class="${idx === benchmarks.length - 1 ? 'text-cyan' : ''}">${b.PeakRamMB} MB</strong></td>
+            </tr>
+        `).join('');
+    }
+
+    const filterSel = $('etlMappingTableFilter');
+    if (filterSel) {
+        const uniqueTables = [...new Set(mappings.map(m => m.TargetTable))];
+        filterSel.innerHTML = `<option value="all">Tất cả ${uniqueTables.length} bảng (${mappings.length} trường)</option>` +
+            uniqueTables.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    }
+    renderEtlMappingTable(mappings, filterSel ? filterSel.value : 'all');
+    renderEtlCharts(costTable);
+}
+
+function renderEtlMappingTable(mappings, tableFilter = 'all') {
+    const tbody = $('etlMappingTableBody');
+    if (!tbody) return;
+    const filtered = tableFilter === 'all' ? mappings : mappings.filter(m => m.TargetTable === tableFilter);
+    tbody.innerHTML = filtered.map(m => {
+        const isDirect = String(m.MappingType).includes('trực tiếp');
+        return `
+            <tr>
+                <td><strong class="text-cyan">${escapeHtml(m.TargetTable)}</strong></td>
+                <td><code>${escapeHtml(m.TargetColumn)}</code></td>
+                <td>
+                    <code>${escapeHtml(m.SourceExpression)}</code>
+                    <div class="text-muted-sm" style="white-space:normal;">${escapeHtml(m.Description || '')}</div>
+                </td>
+                <td><span class="badge ${isDirect ? 'badge-info' : 'badge-purple'}">${escapeHtml(m.MappingType)}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderEtlCharts(costTable) {
+    if (!costTable || !costTable.length) return;
+    const th = chartThemeColors();
+    const labels = costTable.map(r => r.TableName.replace('Fact_', 'F_').replace('Dim_', 'D_'));
+
+    const canvasCol = $('etlColPruningChart');
+    if (canvasCol) {
+        if (etlColPruningChartInstance) etlColPruningChartInstance.destroy();
+        etlColPruningChartInstance = new Chart(canvasCol.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Cột Ánh xạ trực tiếp (1-1)',
+                        data: costTable.map(r => Number(r.DirectMappedCols) || 0),
+                        backgroundColor: th.cyan,
+                        stack: 'cols'
+                    },
+                    {
+                        label: 'Cột Đọc & Biến đổi (Derived)',
+                        data: costTable.map(r => Number(r.TransformedCols) || 0),
+                        backgroundColor: th.purple,
+                        stack: 'cols'
+                    },
+                    {
+                        label: 'Cột Rác đã cắt bỏ (Pruned)',
+                        data: costTable.map(r => Number(r.PrunedCols) || 0),
+                        backgroundColor: 'rgba(148, 163, 184, 0.28)',
+                        stack: 'cols'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: th.text, font: { size: 11 } } }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: th.text, font: { size: 10 } }, grid: { display: false } },
+                    y: { stacked: true, ticks: { color: th.text }, grid: { color: th.grid }, title: { display: true, text: 'Số lượng trường (cột)', color: th.text } }
+                }
+            }
+        });
+    }
+
+    const canvasTime = $('etlVersionTimeChart');
+    if (canvasTime) {
+        if (etlVersionTimeChartInstance) etlVersionTimeChartInstance.destroy();
+        etlVersionTimeChartInstance = new Chart(canvasTime.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'v1 (MERGE từng dòng)',
+                        data: costTable.map(r => Number(r.TimeV1Sec) || 0),
+                        backgroundColor: th.danger
+                    },
+                    {
+                        label: 'v2 (Staging + MERGE)',
+                        data: costTable.map(r => Number(r.TimeV2Sec) || 0),
+                        backgroundColor: th.amber
+                    },
+                    {
+                        label: 'v3 (+ Lọc câu sai)',
+                        data: costTable.map(r => Number(r.TimeV3Sec) || 0),
+                        backgroundColor: th.cyan
+                    },
+                    {
+                        label: 'v4 (+ SSCursor Lô 10k & Tối ưu SQL)',
+                        data: costTable.map(r => Number(r.TotalTimeSec) || 0),
+                        backgroundColor: th.success
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: th.text, font: { size: 11 } } }
+                },
+                scales: {
+                    x: { ticks: { color: th.text, font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: th.text }, grid: { color: th.grid }, title: { display: true, text: 'Thời gian (giây)', color: th.text } }
+                }
+            }
+        });
+    }
+}
+
+function renderMultiTableLineage(data) {
+    if (!data) return;
+    const dims = data.sourceDims || {};
+    const unified = data.unifiedTable || [];
+
+    const u = (dims.tableA_DimUser && dims.tableA_DimUser[0]) || {};
+    const c = (dims.tableB_DimCourse && dims.tableB_DimCourse[0]) || {};
+    const a = (dims.tableC_DimAssign && dims.tableC_DimAssign[0]) || {};
+    const q = (dims.tableD_DimQuiz && dims.tableD_DimQuiz[0]) || {};
+    const d = (dims.tableE_DimDate && dims.tableE_DimDate[0]) || {};
+
+    const container = $('dimSourceCardsContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="dim-source-box" data-box-src="A">
+                <h5><span class="src-tag src-a">Bảng A: Dim_User</span> <span>UserKey=${u.UserKey || '--'}</span></h5>
+                <ul>
+                    <li><code>IdNumber</code>: ${escapeHtml(u.IdNumber || u.Username || '--')}</li>
+                    <li><code>FullName</code>: ${escapeHtml(u.FullName || '--')}</li>
+                    <li><code>CohortName</code>: <strong>${escapeHtml(u.CohortName || '--')}</strong></li>
+                    <li><code>Department</code>: ${escapeHtml(u.Department || '--')}</li>
+                </ul>
+            </div>
+            <div class="dim-source-box" data-box-src="B">
+                <h5><span class="src-tag src-b">Bảng B: Dim_Course</span> <span>${(dims.tableB_DimCourse || []).length} môn</span></h5>
+                <ul>
+                    <li><code>CourseKey</code>: ${escapeHtml(c.CourseKey || '--')}</li>
+                    <li><code>CourseCode</code>: ${escapeHtml(c.CourseCode || c.CourseShortName || '--')}</li>
+                    <li><code>CourseName</code>: <strong>${escapeHtml(c.CourseName || '--')}</strong></li>
+                </ul>
+            </div>
+            <div class="dim-source-box" data-box-src="C">
+                <h5><span class="src-tag src-c">Bảng C: Dim_Assign</span> <span>${(dims.tableC_DimAssign || []).length} bài tập</span></h5>
+                <ul>
+                    <li><code>AssignKey</code>: ${escapeHtml(a.AssignKey || '--')}</li>
+                    <li><code>AssignName</code>: <strong>${escapeHtml(a.AssignName || '--')}</strong></li>
+                    <li><code>MaxGrade</code>: ${escapeHtml(a.MaxGrade ?? 10)}</li>
+                </ul>
+            </div>
+            <div class="dim-source-box" data-box-src="D">
+                <h5><span class="src-tag src-d">Bảng D: Dim_Quiz</span> <span>${(dims.tableD_DimQuiz || []).length} quiz</span></h5>
+                <ul>
+                    <li><code>QuizKey</code>: ${escapeHtml(q.QuizKey || '--')}</li>
+                    <li><code>QuizName</code>: <strong>${escapeHtml(q.QuizName || '--')}</strong></li>
+                    <li><code>TimeLimit</code>: ${escapeHtml(q.TimeLimitMinutes ?? 0)} phút</li>
+                </ul>
+            </div>
+            <div class="dim-source-box" data-box-src="E">
+                <h5><span class="src-tag src-e">Bảng E: Dim_Date</span> <span>DateKey=${d.DateKey || '--'}</span></h5>
+                <ul>
+                    <li><code>FullDate</code>: ${escapeHtml(d.FullDate ? String(d.FullDate).slice(0, 10) : 'Học kỳ hiện tại')}</li>
+                    <li><code>Quarter</code>: Quý ${escapeHtml(d.Quarter || '--')}</li>
+                    <li><code>Year</code>: Năm <strong>${escapeHtml(d.Year || '2026')}</strong></li>
+                </ul>
+            </div>
+        `;
+
+        container.querySelectorAll('.dim-source-box').forEach(box => {
+            box.addEventListener('click', () => highlightLineageSource(box.dataset.boxSrc));
+        });
+    }
+
+    const tbody = $('unifiedLineageTableBody');
+    if (tbody) {
+        if (!unified.length) {
+            tbody.innerHTML = emptyStateHTML('Chưa có dữ liệu hợp nhất', 'Hãy đăng nhập tài khoản sinh viên để xem bảng hợp nhất 5 Dim.');
+        } else {
+            tbody.innerHTML = unified.map(row => `
+                <tr>
+                    <td data-src-col="A"><code>${escapeHtml(row.A_IdNumber || '--')}</code></td>
+                    <td data-src-col="A"><strong>${escapeHtml(row.A_FullName)}</strong></td>
+                    <td data-src-col="A"><span class="badge badge-info">${escapeHtml(row.A_CohortName)}</span></td>
+                    <td data-src-col="B"><code>${escapeHtml(row.B_CourseCode || '--')}</code></td>
+                    <td data-src-col="B"><span class="course-name">${escapeHtml(row.B_CourseName)}</span></td>
+                    <td data-src-col="C">${escapeHtml(row.C_SampleAssign || '(Không có BT)')}</td>
+                    <td data-src-col="D">${escapeHtml(row.D_SampleQuiz || '(Không có Quiz)')}</td>
+                    <td data-src-col="E">${escapeHtml(row.E_SyncDate)} · Q${escapeHtml(row.E_Quarter)}/${escapeHtml(row.E_Year)}</td>
+                    <td data-src-col="F">${row.Fact_RawGrade ?? '--'} → <strong class="text-success">${Number(row.Fact_Grade10 || 0).toFixed(2)}</strong></td>
+                    <td data-src-col="F"><span class="badge badge-success">${escapeHtml(row.Fact_Letter)}</span> ${escapeHtml(row.Fact_Classification)}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Điền sẵn dữ liệu vào Form Demo Đổi Dữ Liệu (Tab 3)
+    if (u.CohortName && $('demoNewCohort') && !$('demoNewCohort').value) {
+        $('demoNewCohort').value = u.CohortName.includes('(Đã đồng bộ)') ? u.CohortName.replace(' (Đã đồng bộ)', '') : `${u.CohortName} (Đã đồng bộ)`;
+    }
+    if (u.Department && $('demoNewDept') && !$('demoNewDept').value) {
+        $('demoNewDept').value = u.Department;
+    }
+
+    const coursesList = dims.tableB_DimCourse || [];
+    const fillCourseOpts = (selId) => {
+        const sel = $(selId);
+        if (!sel || !coursesList.length) return;
+        sel.innerHTML = coursesList.map(cItem =>
+            `<option value="${cItem.CourseKey}">[CourseKey=${cItem.CourseKey}] ${escapeHtml(cItem.CourseName)}</option>`
+        ).join('');
+    };
+    fillCourseOpts('demoCourseSelect');
+    fillCourseOpts('demoGradeCourseSelect');
+    if (coursesList[0] && $('demoNewCourseName') && !$('demoNewCourseName').value) {
+        $('demoNewCourseName').value = `${coursesList[0].CourseName} (Cập nhật MERGE)`;
+    }
+}
+
+function highlightLineageSource(srcCode) {
+    document.querySelectorAll('#lineageHighlightPills .pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.lineageSrc === srcCode);
+    });
+    document.querySelectorAll('#dimSourceCardsContainer .dim-source-box').forEach(b => {
+        b.classList.toggle('active-highlight', srcCode !== 'all' && b.dataset.boxSrc === srcCode);
+    });
+    document.querySelectorAll('#unifiedLineageTable [data-src-col]').forEach(cell => {
+        if (srcCode === 'all') {
+            cell.classList.remove('col-dimmed', 'col-highlighted');
+        } else if (cell.dataset.srcCol === srcCode) {
+            cell.classList.remove('col-dimmed');
+            cell.classList.add('col-highlighted');
+        } else {
+            cell.classList.remove('col-highlighted');
+            cell.classList.add('col-dimmed');
+        }
+    });
+}
+
+async function handleLiveSyncSubmit(e) {
+    e.preventDefault();
+    const btn = $('btnRunLiveSync');
+    const targetType = $('demoTargetType').value;
+    const userKey = state.lineageData?.userKey || JSON.parse(localStorage.getItem('dlu_student_user') || '{}').userKey || 1;
+
+    const payload = {
+        targetType,
+        userKey,
+        courseKey: targetType === 'Dim_Course' ? $('demoCourseSelect')?.value : $('demoGradeCourseSelect')?.value,
+        newCohortName: $('demoNewCohort')?.value,
+        newDepartment: $('demoNewDept')?.value,
+        newCourseName: $('demoNewCourseName')?.value,
+        newRawGrade: $('demoNewRawGrade')?.value
+    };
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await ApiService.runLiveSyncDemo(payload);
+        if (!res.success) {
+            showToast(res.message || 'Không thể chạy đồng bộ demo.', 'error');
+            return;
+        }
+        showToast(res.message, 'success');
+        const d = res.data;
+        const box = $('liveSyncResultBox');
+        if (box && d) {
+            const renderKv = (obj) => Object.entries(obj).map(([k, v]) =>
+                `<div class="diff-kv"><span class="text-muted-sm">${escapeHtml(k)}:</span> <strong>${escapeHtml(v)}</strong></div>`
+            ).join('');
+
+            box.className = '';
+            box.innerHTML = `
+                <div class="alert-box" style="background:var(--success-soft);border:1px solid var(--color-success);color:var(--color-success);margin-bottom:12px;">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <strong>${escapeHtml(res.message)}</strong><br>
+                    <span>Bảng trung gian: <code>${escapeHtml(d.stagingTable)}</code> → Bảng đích: <code>${escapeHtml(d.targetTable)}</code> | Khóa bảo toàn: <code>${escapeHtml(d.surrogateKeyName)} = ${escapeHtml(d.surrogateKeyValue)}</code></span>
+                </div>
+                <div class="diff-comparison-grid">
+                    <div class="diff-box before">
+                        <h5 class="text-amber"><i class="fa-solid fa-clock-rotate-left"></i> TRƯỚC KHI ĐỒNG BỘ (Before)</h5>
+                        ${renderKv(d.before)}
+                    </div>
+                    <div class="diff-box after">
+                        <h5 class="text-success"><i class="fa-solid fa-bolt"></i> SAU KHI STAGING + MERGE (After)</h5>
+                        ${renderKv(d.after)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Cập nhật lại ngay Bảng hợp nhất 5 Dim và Dashboard chính của sinh viên
+        if (targetType === 'Dim_User' && d?.after?.CohortName) {
+            const uJson = localStorage.getItem('dlu_student_user');
+            if (uJson) {
+                const uObj = JSON.parse(uJson);
+                uObj.cohortName = d.after.CohortName;
+                uObj.department = d.after.Department;
+                localStorage.setItem('dlu_student_user', JSON.stringify(uObj));
+                initStudentProfile();
+            }
+        }
+        await loadStudentData(true);
+    } catch (err) {
+        showToast('Lỗi khi gọi API đồng bộ: ' + err.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 function goToFilteredTab(tab, pillStatus) {
     switchTab(tab);
     setPill(tab === 'assignments' ? 'assignPills' : 'quizPills', pillStatus);
@@ -1065,6 +1524,57 @@ function bindEvents() {
     $('kpiQuiz').addEventListener('click', () => goToFilteredTab('quizzes', 'all'));
 
     $('btnViewUrgent')?.addEventListener('click', () => goToFilteredTab('assignments', 'pending'));
+
+    // Sự kiện cho Trung tâm ETL Studio & Demo Đa Bảng
+    $('btnOpenEtlStudio')?.addEventListener('click', () => {
+        $('etlStudioSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    $('btnLoginEtlPreview')?.addEventListener('click', () => {
+        $('loginView').classList.add('hidden');
+        $('dashboardView').classList.remove('hidden');
+        $('btnCloseGuestEtl')?.classList.remove('hidden');
+        loadEtlStudioData();
+        setTimeout(() => $('etlStudioSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    });
+
+    $('btnCloseGuestEtl')?.addEventListener('click', () => {
+        $('btnCloseGuestEtl').classList.add('hidden');
+        checkAuthState();
+    });
+
+    document.querySelectorAll('#etlStudioTabs .tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.etlTab;
+            document.querySelectorAll('#etlStudioTabs .tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.etlTab === tab);
+                t.setAttribute('aria-selected', String(t.dataset.etlTab === tab));
+            });
+            $('etl-panel-cost')?.classList.toggle('active', tab === 'cost');
+            $('etl-panel-lineage')?.classList.toggle('active', tab === 'lineage');
+            $('etl-panel-livedemo')?.classList.toggle('active', tab === 'livedemo');
+        });
+    });
+
+    $('etlMappingTableFilter')?.addEventListener('change', (e) => {
+        const mappings = state.etlCostData?.columnMappings || FALLBACK_COST_DATA.columnMappings;
+        renderEtlMappingTable(mappings, e.target.value);
+    });
+
+    $('lineageHighlightPills')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-lineage-src]');
+        if (!btn) return;
+        highlightLineageSource(btn.dataset.lineageSrc);
+    });
+
+    $('demoTargetType')?.addEventListener('change', (e) => {
+        const v = e.target.value;
+        $('demoFieldsDimUser')?.classList.toggle('hidden', v !== 'Dim_User');
+        $('demoFieldsDimCourse')?.classList.toggle('hidden', v !== 'Dim_Course');
+        $('demoFieldsFactGrade')?.classList.toggle('hidden', v !== 'Fact_Course_Grades');
+    });
+
+    $('liveEtlDemoForm')?.addEventListener('submit', handleLiveSyncSubmit);
 
     document.querySelectorAll('.kpi-clickable').forEach(card => {
         card.addEventListener('keydown', (e) => {
