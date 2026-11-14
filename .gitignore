@@ -16,11 +16,3 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
-
-# Private source data and local migration artifacts (never commit)
-/Data_11-2026/
-/local-v2/
-/backups/
-*.sql.gz
-*.bak
-*.dump
